@@ -62,65 +62,45 @@ export type AuthUser = {
   role: string | null;
 };
 
-export type ShipmentShipperRef = Pick<Shipper, "id" | "slug" | "name" | "brand_color">;
-export type ShipmentCustomerRef = Pick<Customer, "id" | "name">;
+export type StickerBatchShipper = Pick<Shipper, "id" | "slug" | "name" | "brand_color">;
+export type StickerBatchMaterial = Pick<
+  Material,
+  "id" | "material_name" | "hs_code" | "sticker_display_name" | "goods_description"
+>;
 
-export type Shipment = {
+export type StickerBatch = {
   id: string;
-  type: string;
   shipper_id: string;
-  consignee_id: string | null;
-  notify1_id: string | null;
-  notify2_id: string | null;
-  port_of_discharge: string | null;
-  payment_terms: string | null;
-  unit_price_usd: number | null;
+  material_id: string;
+  type: string;
+  sticker_file_url: string | null;
   status: string;
   created_at: string;
-  shipper: ShipmentShipperRef;
-  consignee: ShipmentCustomerRef | null;
-  notify1: ShipmentCustomerRef | null;
-  notify2: ShipmentCustomerRef | null;
+  shipper: StickerBatchShipper;
+  material: StickerBatchMaterial;
 };
 
-export type ShipmentCreateInput = {
+export type StickerBatchCreateInput = {
   type: string;
   shipper_id: string;
-  consignee_id?: string | null;
-  notify1_id?: string | null;
-  notify2_id?: string | null;
-  port_of_discharge?: string | null;
-  payment_terms?: string | null;
-  unit_price_usd?: number | null;
+  material_id: string;
 };
 
-export type ShipmentUpdateInput = Partial<ShipmentCreateInput & { status: string }>;
-
-export type Bundle = {
-  id: string;
-  shipment_id: string;
-  material_name: string | null;
-  batch_no: string | null;
-  bundle_no: string | null;
-  ingot_count: number | null;
-  gross_weight: number | null;
-  net_weight: number | null;
-  image_path: string | null;
-  image_url: string | null;
-  created_at: string;
-};
-
-export type BundleUpdateInput = {
-  material_name?: string | null;
-  batch_no?: string | null;
-  bundle_no?: string | null;
-  ingot_count?: number | null;
-  gross_weight?: number | null;
-  net_weight?: number | null;
-};
+export type StickerBatchUpdateInput = Partial<
+  StickerBatchCreateInput & { sticker_file_url: string | null; status: string }
+>;
 
 function customerQuery(status?: string): string {
   return status ? `/customers?status=${encodeURIComponent(status)}` : "/customers";
+}
+
+function batchQuery(params?: { type?: string; status?: string }): string {
+  if (!params) return "/batches";
+  const search = new URLSearchParams();
+  if (params.type) search.set("type", params.type);
+  if (params.status) search.set("status", params.status);
+  const query = search.toString();
+  return query ? `/batches?${query}` : "/batches";
 }
 
 export const api = {
@@ -134,16 +114,10 @@ export const api = {
   rejectCustomer: (id: string) => http.patch<Customer>(`/customers/${id}/reject`, {}),
   getMaterials: () => http.get<Material[]>("/materials"),
   getShippers: () => http.get<Shipper[]>("/shippers"),
-  createShipment: (data: ShipmentCreateInput) => http.post<Shipment>("/shipments", data),
-  getShipments: () => http.get<Shipment[]>("/shipments"),
-  getShipment: (id: string) => http.get<Shipment>(`/shipments/${id}`),
-  updateShipment: (id: string, data: ShipmentUpdateInput) =>
-    http.patch<Shipment>(`/shipments/${id}`, data),
-  getBundles: (shipmentId: string) => http.get<Bundle[]>(`/shipments/${shipmentId}/bundles`),
-  uploadBundle: (shipmentId: string, file: File) =>
-    http.upload<Bundle>(`/shipments/${shipmentId}/bundles`, file),
-  updateBundle: (shipmentId: string, bundleId: string, data: BundleUpdateInput) =>
-    http.patch<Bundle>(`/shipments/${shipmentId}/bundles/${bundleId}`, data),
-  deleteBundle: (shipmentId: string, bundleId: string) =>
-    http.delete<void>(`/shipments/${shipmentId}/bundles/${bundleId}`),
+  createBatch: (data: StickerBatchCreateInput) => http.post<StickerBatch>("/batches", data),
+  getBatches: (params?: { type?: string; status?: string }) =>
+    http.get<StickerBatch[]>(batchQuery(params)),
+  getBatch: (id: string) => http.get<StickerBatch>(`/batches/${id}`),
+  updateBatch: (id: string, data: StickerBatchUpdateInput) =>
+    http.patch<StickerBatch>(`/batches/${id}`, data),
 };

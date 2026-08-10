@@ -4,13 +4,12 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 
 import { supabase } from "@/lib/supabase";
 import Admin from "@/pages/Admin";
+import BatchGate from "@/pages/BatchGate";
 import Dashboard from "@/pages/Dashboard";
-import DomesticBuilder from "@/pages/DomesticBuilder";
-import ExportBuilder from "@/pages/ExportBuilder";
+import DomesticBatchBuilder from "@/pages/DomesticBatchBuilder";
+import ExportBatchBuilder from "@/pages/ExportBatchBuilder";
 import Login from "@/pages/Login";
-import OcrPage from "@/pages/OcrPage";
-import ShipmentGate from "@/pages/ShipmentGate";
-import StickersPlaceholder from "@/pages/StickersPlaceholder";
+import OcrPlaceholder from "@/pages/OcrPlaceholder";
 import SubmitCustomer from "@/pages/SubmitCustomer";
 
 function App() {
@@ -58,11 +57,10 @@ function App() {
         />
         <Route path="/admin" element={<Admin />} />
         <Route path="/submit-customer" element={<SubmitCustomer />} />
-        <Route path="/shipments/new" element={<ShipmentGate />} />
-        <Route path="/shipments/new/domestic" element={<DomesticBuilder />} />
-        <Route path="/shipments/new/export" element={<ExportBuilder />} />
-        <Route path="/shipments/:id/ocr" element={<OcrPage />} />
-        <Route path="/shipments/:id/stickers" element={<StickersPlaceholder />} />
+        <Route path="/batches/new" element={<BatchGate />} />
+        <Route path="/batches/new/domestic" element={<DomesticBatchBuilder />} />
+        <Route path="/batches/new/export" element={<ExportBatchBuilder />} />
+        <Route path="/batches/:id/ocr" element={<OcrPlaceholder />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

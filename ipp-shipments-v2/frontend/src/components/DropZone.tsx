@@ -11,7 +11,6 @@ export type DroppedShipper = {
 type DropZoneProps = {
   id: string;
   label: string;
-  accepts: "shipper" | "customer";
   item: DroppedShipper | null;
   onRemove: () => void;
 };
@@ -47,9 +46,10 @@ export default function DropZone({ id, label, item, onRemove }: DropZoneProps) {
             </div>
           </div>
         ) : (
-          <p className="flex min-h-16 items-center justify-center text-sm text-muted-foreground">
-            Drop here
-          </p>
+          <div className="flex min-h-16 flex-col items-center justify-center text-sm text-muted-foreground">
+            <span>{label}</span>
+            <span>Drop here</span>
+          </div>
         )}
       </div>
     </div>

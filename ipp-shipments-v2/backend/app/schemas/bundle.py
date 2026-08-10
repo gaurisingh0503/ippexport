@@ -17,7 +17,7 @@ class BundleOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    shipment_id: uuid.UUID
+    sticker_batch_id: uuid.UUID
     material_name: str | None
     batch_no: str | None
     bundle_no: str | None

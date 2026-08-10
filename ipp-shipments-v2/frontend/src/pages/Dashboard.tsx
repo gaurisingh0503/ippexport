@@ -10,8 +10,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { api, type StickerBatch } from "@/lib/api";
 import { env } from "@/lib/env";
-import { api, type Shipment } from "@/lib/api";
 import { signOut } from "@/lib/supabase";
 
 type DashboardProps = {
@@ -30,10 +30,10 @@ function formatDate(iso: string): string {
 export default function Dashboard({ email, onSignOut }: DashboardProps) {
   const navigate = useNavigate();
   const isAdmin = email === env.adminEmail;
-  const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [batches, setBatches] = useState<StickerBatch[]>([]);
 
   useEffect(() => {
-    api.getShipments().then(setShipments).catch(() => setShipments([]));
+    api.getBatches().then(setBatches).catch(() => setBatches([]));
   }, []);
 
   async function handleSignOut() {
@@ -41,10 +41,10 @@ export default function Dashboard({ email, onSignOut }: DashboardProps) {
     onSignOut();
   }
 
-  const recent = shipments.slice(0, 5);
+  const recent = batches.slice(0, 5);
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-8 p-6">
+    <div className="mx-auto flex min-h-screen max-w-4xl flex-col gap-8 p-6">
       <div className="text-center">
         <h1 className="text-2xl font-semibold">IPP Shipments</h1>
         <p className="mt-1 text-muted-foreground">Welcome, {email}</p>
@@ -52,7 +52,7 @@ export default function Dashboard({ email, onSignOut }: DashboardProps) {
 
       <div className="flex flex-wrap justify-center gap-3">
         <Button asChild>
-          <Link to="/shipments/new">New Shipment</Link>
+          <Link to="/batches/new">New Batch</Link>
         </Button>
         <Button asChild variant="secondary">
           <Link to="/submit-customer">Submit Customer</Link>
@@ -68,30 +68,38 @@ export default function Dashboard({ email, onSignOut }: DashboardProps) {
       </div>
 
       <div className="space-y-3">
-        <h2 className="text-lg font-medium">Recent Shipments</h2>
+        <h2 className="text-lg font-medium">Recent Batches</h2>
         {recent.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No shipments yet.</p>
+          <p className="text-sm text-muted-foreground">No batches yet.</p>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Type</TableHead>
                 <TableHead>Shipper</TableHead>
+                <TableHead>Material</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {recent.map((shipment) => (
+              {recent.map((batch) => (
                 <TableRow
-                  key={shipment.id}
+                  key={batch.id}
                   className="cursor-pointer"
-                  onClick={() => navigate(`/shipments/${shipment.id}/ocr`)}
+                  onClick={() => navigate(`/batches/${batch.id}/ocr`)}
                 >
-                  <TableCell className="capitalize">{shipment.type}</TableCell>
-                  <TableCell>{shipment.shipper.name}</TableCell>
-                  <TableCell className="capitalize">{shipment.status}</TableCell>
-                  <TableCell>{formatDate(shipment.created_at)}</TableCell>
+                  <TableCell>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs capitalize">
+                      {batch.type}
+                    </span>
+                  </TableCell>
+                  <TableCell>{batch.shipper.name}</TableCell>
+                  <TableCell>{batch.material.material_name}</TableCell>
+                  <TableCell className="capitalize">
+                    {batch.status.replace(/_/g, " ")}
+                  </TableCell>
+                  <TableCell>{formatDate(batch.created_at)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

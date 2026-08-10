@@ -1,18 +1,23 @@
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 
-import type { Shipper } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
+export type ShipperCardData = {
+  id: string;
+  name: string;
+  brand_color: string;
+};
+
 type ShipperCardProps = {
-  shipper: Shipper;
+  shipper: ShipperCardData;
   disabled?: boolean;
 };
 
 export default function ShipperCard({ shipper, disabled = false }: ShipperCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
-    id: `shipper-${shipper.id}`,
-    data: { kind: "shipper", shipper },
+    id: shipper.id,
+    data: { type: "shipper", shipper },
     disabled,
   });
 
@@ -33,7 +38,7 @@ export default function ShipperCard({ shipper, disabled = false }: ShipperCardPr
         isDragging && "opacity-50",
       )}
     >
-      <p className="font-medium">{shipper.name}</p>
+      <p className="font-bold">{shipper.name}</p>
     </div>
   );
 }
