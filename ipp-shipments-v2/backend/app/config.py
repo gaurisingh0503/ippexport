@@ -8,11 +8,12 @@ class Settings(BaseSettings):
     supabase_anon_key: str
     supabase_service_role_key: str
     database_url: str
+    database_url_direct: str
 
     anthropic_api_key: str
     claude_model: str = "claude-sonnet-4-5"
 
-    template_dir: str
+    supabase_storage_bucket: str
 
     environment: str = "development"
     cors_origins: str = "http://localhost:5173"

@@ -10,4 +10,5 @@ export const env = {
   apiBaseUrl: required("VITE_API_BASE_URL"),
   supabaseUrl: required("VITE_SUPABASE_URL"),
   supabaseAnonKey: required("VITE_SUPABASE_ANON_KEY"),
+  adminEmail: required("VITE_ADMIN_EMAIL"),
 } as const;

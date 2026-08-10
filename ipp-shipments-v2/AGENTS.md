@@ -27,7 +27,7 @@ operator).
 | ORM | SQLAlchemy 2 (async) + Alembic migrations |
 | Config | pydantic-settings — single `app/config.py`, never `os.getenv` in app code |
 | OCR | Anthropic Claude API (claude-sonnet-4-5 or newer) |
-| Excel | openpyxl — reads existing template files, writes filled copies |
+| Excel | openpyxl — downloads templates from Supabase Storage, writes filled copies |
 | Frontend | Vite + React + TypeScript (strict) |
 | Frontend deps | pnpm only |
 | Styling | Tailwind CSS |
@@ -51,9 +51,10 @@ Two roles only. No self-registration.
 
 ## Template files
 
-Live in `C:\IPP_Shipments\Templates\v2\` on the production machine. The backend reads these
-at runtime to fill and generate output Excels. Never hard-code cell positions; derive them
-from the template's own merged-cell and row layout.
+Stored in Supabase Storage bucket `ipp-templates` (configured via `SUPABASE_STORAGE_BUCKET`).
+The backend downloads the required template at runtime, writes to a temp file, fills with
+openpyxl, and streams the result to the client. Never cache templates between requests.
+Never hard-code cell positions; derive them from the template's own merged-cell and row layout.
 
 ## Shippers
 

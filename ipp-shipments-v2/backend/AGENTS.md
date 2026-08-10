@@ -77,7 +77,7 @@ dashboard — Alembic is the source of truth.
 
 ## Excel generation (openpyxl)
 
-- Template files are at the path in `settings.template_dir`.
+- Template files are stored in Supabase Storage bucket `ipp-templates`. Download the required template at runtime using the Supabase client, write to a temp file, fill with openpyxl, then stream back to the client. Never cache templates between requests.
 - Open with `openpyxl.load_workbook(path)` (NOT `data_only=True` — we need formula strings).
 - Write only to the top-left cell of any merged range.
 - Save the filled copy to a temp file; stream it back to the client via `FileResponse`.

@@ -5,107 +5,171 @@ Check off each item as it is done and committed.
 
 ---
 
-## Phase 0 — Scaffold ← YOU ARE HERE
+## Phase 0 — Scaffold ✅
 
-- [x] Root `AGENTS.md`
-- [x] `backend/AGENTS.md`
-- [x] `frontend/AGENTS.md`
-- [x] `to-dos.md` (this file)
-- [ ] `backend/pyproject.toml` with uv + supply-chain guard
-- [ ] `backend/.env.example`
-- [ ] `backend/app/__init__.py`, `main.py`, `config.py`, `db.py` skeletons
-- [ ] `backend/alembic.ini` + `alembic/env.py`
-- [ ] `frontend/` Vite scaffold via `pnpm create vite@latest frontend --template react-ts`
-- [ ] `frontend/.npmrc` with `minimum-release-age=10080`
-- [ ] `frontend/src/lib/env.ts`, `http.ts`, `api.ts`, `supabase.ts` stubs
-- [ ] `.gitignore` covering `.env`, `__pycache__`, `node_modules`, `.venv`
-- [ ] Repo pushed to GitHub
+## Phase 1 — Auth ✅
 
----
+## Phase 2 — Entity Management ✅
 
-## Phase 1 — Auth
-
-- [ ] Supabase project created (Postgres + Auth enabled)
-- [ ] `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` in `.env`
-- [ ] `app/auth/deps.py` — `get_current_user` dependency verifying Supabase JWT
-- [ ] `app/api/auth.py` — `/auth/me` endpoint
-- [ ] First Alembic migration (creates `users` mirror table if needed)
-- [ ] `src/pages/Login.tsx` — email + password form
-- [ ] `src/lib/supabase.ts` — sign-in, sign-out, session listener
-- [ ] `App.tsx` auth guard — redirect unauthenticated users to `/login`
-- [ ] Manual test: login, protected route, logout
+- [x] DB tables: shippers, customers
+- [x] Seed shippers: IPP + Rich-Siri
+- [x] Seed 5 customers
+- [x] GET /customers, POST /customers, PATCH /customers/{id}
+- [x] GET /shippers
+- [x] Add status column to Customer (pending / approved / rejected), default approved
+- [x] Alembic migration for status column
+- [x] Update GET /customers to filter by status (default: approved only)
+- [x] Update POST /customers to set status=pending on every new submission
+- [x] Add PATCH /customers/{id}/approve and /reject endpoints
+- [x] DB table: materials — material_name, hs_code, sticker_display_name, goods_description
+- [x] Seed 4 materials
+- [x] GET /materials
+- [x] src/pages/SubmitCustomer.tsx — form for any logged-in user
+- [x] src/pages/Admin.tsx — Approved tab + Pending Approvals tab with approve/reject buttons
+- [x] Add VITE_ADMIN_EMAIL to env.ts and .env.example
+- [x] Add /admin and /submit-customer routes to App.tsx
+- [x] Update Dashboard.tsx nav with Submit Customer + Admin links
+- [x] Manual test: submit customer → pending → admin approves → appears in approved list
+- [x] Commit: Phase 2 complete
 
 ---
 
-## Phase 2 — Entity Management
+## Phase 3 — Shipment Builder (DnD UI) ✅
 
-- [ ] DB tables: `shippers`, `customers` (Alembic migration)
-- [ ] Seed shippers: IPP + Rich-Siri (name, address, tax ID, brand color)
-- [ ] Seed 5 customers from control_sheet.xlsx (Raveshia, Zetwerk, Jain Resource, HK Yesheng, BNS Korea)
-- [ ] `app/api/customers.py` — GET list, POST create, PATCH update (admin only)
-- [ ] `src/pages/Admin.tsx` — customer list + add/edit form (admin role only)
-- [ ] Manual test: add a customer, verify it persists
+Two separate processes: Stickers (both Domestic and Export) and
+Invoice/PL/COA (Export only, requires approval).
 
----
-
-## Phase 3 — Shipment Builder (DnD UI)
-
-- [ ] DB table: `shipments` with columns: id, type (domestic/export), shipper_id, consignee_id,
-      notify1_id, notify2_id, port_of_discharge, payment_terms, status, created_at
-- [ ] Alembic migration
-- [ ] `app/api/shipments.py` — POST create, GET detail, PATCH update
-- [ ] `src/pages/ShipmentGate.tsx` — card picker: "Domestic Shipment" | "Export Shipment"
-- [ ] `src/pages/DomesticBuilder.tsx`:
-  - Left panel: shipper cards (IPP, Rich-Siri)
-  - Right panel: single `Shipper` drop zone
-  - Confirm button → POST /shipments → navigate to OCR step
-- [ ] `src/pages/ExportBuilder.tsx`:
-  - Left panel: shipper cards + customer cards
-  - Right panel: Consignee, Shipper, Notify Party 1, Notify Party 2 drop zones
-  - Drop on Consignee auto-fills port_of_discharge + payment_terms
-  - Confirm button → POST /shipments → navigate to OCR step
-- [ ] Manual test: build a domestic and an export shipment end to end
+- [x] DB table: shipments — id, type (domestic/export), shipper_id,
+      consignee_id, notify1_id, notify2_id, port_of_discharge,
+      payment_terms, status (draft/submitted/approved/rejected), created_at
+- [x] Alembic migration
+- [x] POST /shipments, GET /shipments, GET /shipments/{id}, PATCH /shipments/{id}
+- [x] src/pages/ShipmentGate.tsx — card picker: Domestic or Export
+- [x] src/pages/DomesticBuilder.tsx:
+      - Left panel: shipper cards (IPP, Rich-Siri)
+      - Right panel: Shipper drop zone only
+      - Confirm → POST /shipments → navigate to OCR (stickers)
+- [x] src/pages/ExportBuilder.tsx:
+      - Left panel: shipper cards + approved customer cards
+      - Right panel: Consignee, Shipper, Notify Party 1, Notify Party 2 drop zones
+      - Drop on Consignee auto-fills port_of_discharge + payment_terms
+      - Confirm → POST /shipments → navigate to OCR (stickers)
+- [x] Add shipment routes to App.tsx
+- [x] Manual test: create a domestic and export shipment
+- [ ] Commit: Phase 3 complete
 
 ---
 
-## Phase 4 — OCR
+## Phase 4 — OCR ✅
 
-- [ ] `ANTHROPIC_API_KEY` in `.env`
-- [ ] `app/services/ocr.py` — accepts image bytes, calls Claude vision, returns structured dict
-      (material_name, batch_no, bundle_no, ingot_count, gross_weight, net_weight)
-- [ ] `app/api/shipments.py` — POST `/shipments/{id}/bundles` (upload image → run OCR → store)
-- [ ] DB table: `bundles` (id, shipment_id, all OCR fields, raw_image_path)
-- [ ] Alembic migration
-- [ ] Upload step UI: drag-drop or file picker, shows extracted values for confirmation/edit
-- [ ] Manual test: upload a real bundle photo, confirm OCR result
-
----
-
-## Phase 5 — Document Generation
-
-- [ ] `TEMPLATE_DIR` env var pointing to the v2 templates folder
-- [ ] `app/services/excel.py` — reads templates, fills cells, returns temp file path
-  - `generate_stickers(shipment, bundles, template_path)` → xlsx bytes
-  - `generate_invoice_pl_coa(shipment, bundles, template_path)` → xlsx bytes
-- [ ] `app/api/documents.py` — GET `/shipments/{id}/download/stickers` and `/download/invoice`
-      (returns FileResponse with correct Content-Disposition)
-- [ ] Download button on builder pages → triggers correct endpoint based on shipment type
-- [ ] Manual test: full domestic run (OCR + sticker download), full export run (OCR + all docs)
+- [x] ANTHROPIC_API_KEY in .env
+- [x] app/services/ocr.py — accepts image bytes, calls Claude vision,
+      returns: material_name, batch_no, bundle_no, ingot_count,
+      gross_weight, net_weight
+- [x] DB table: bundles — id, shipment_id, all OCR fields, raw_image_path
+- [x] Alembic migration
+- [x] POST /shipments/{id}/bundles — upload image → OCR → store result
+- [x] Bundle upload UI — drag-drop or file picker, shows extracted values
+      for operator to confirm or correct before saving
+- [x] Manual test: upload a real bundle photo, confirm OCR output
+- [ ] Commit: Phase 4 complete
 
 ---
 
-## Phase 6 — Deploy to Railway
+## Phase 5 — Sticker Generation (no approval needed)
 
-- [ ] `backend/Dockerfile` (or Railway nixpacks auto-detect — check which works)
-- [ ] `frontend/` deployed as static site (Railway static or Vite build + serve)
-- [ ] Production env vars set in Railway dashboard
+- [ ] SUPABASE_STORAGE_BUCKET=ipp-templates in .env
+- [ ] app/services/excel.py — generate_stickers(shipment, bundles, template)
+      downloads template from Supabase Storage, fills cells with OCR data,
+      returns xlsx bytes. Never modifies master templates.
+- [ ] GET /shipments/{id}/stickers — generates and streams sticker Excel
+      to browser as a file download
+- [ ] Sticker preview page:
+      - Shows a summary table of all bundles and their data
+      - Download Stickers button → hits the endpoint above
+      - operator confirms data looks right before downloading
+- [ ] Manual test: full domestic run — OCR → preview → download stickers
+- [ ] Manual test: full export run — OCR → preview → download stickers
+- [ ] Commit: Phase 5 complete
+
+---
+
+## Phase 6 — Invoice / PL / COA Generation (Export only)
+
+- [ ] COA photo OCR — same service as Phase 4 but for COA documents
+      extracts: certificate reference, analysis values per element
+- [ ] POST /shipments/{id}/coa — upload COA photo → OCR → store
+- [ ] Invoice builder page (after stickers are done for export shipments):
+      - DnD zones: Consignee, Notify Party 1, Notify Party 2
+        (pre-filled from shipment but operator can change)
+      - Price input field (USD per tonne)
+      - All other fields auto-filled: shipper details from shippers table,
+        weights/quantities from bundle OCR data, COA specs from COA_Specs,
+        customer address lines from customers table
+      - Generate Documents button → POST /shipments/{id}/documents
+- [ ] app/services/excel.py — generate_invoice_pl_coa(shipment, bundles, coa, template)
+      fills Invoice + Packing List + C-1&2 + C-3&4 + COA sheets
+- [ ] POST /shipments/{id}/documents — generates all export docs,
+      saves to Supabase Storage, sets shipment status to draft
+- [ ] Document preview page:
+      - Shows a summary of what was generated (shipper, consignee,
+        total weight, price, bundle count)
+      - Two options:
+        1. Download Draft → streams the generated Excel for offline editing
+        2. Submit for Approval → if no edits needed, submits as-is
+      - Re-upload Edited File → operator uploads their edited Excel,
+        replaces the file in Supabase Storage
+      - Submit for Approval button (available after generate or re-upload)
+        → sets shipment status to submitted
+- [ ] Manual test: generate docs → download draft → re-upload → submit
+- [ ] Manual test: generate docs → submit directly without editing
+- [ ] Commit: Phase 6 complete
+
+---
+
+## Phase 7 — Approval Workflow + Notifications
+
+- [ ] Sign up for Resend (resend.com) — free tier is enough
+- [ ] RESEND_API_KEY + ADMIN_EMAIL + OPERATOR_EMAIL in .env
+- [ ] app/services/email.py — send_approval_request(shipment_id) and
+      send_approval_confirmation(shipment_id, operator_email)
+      using Resend API (no attachments — notification emails only)
+- [ ] Wire POST /shipments/{id}/submit → sends email to admin:
+      "Shipment {id} documents are pending your approval."
+      with a link to the admin panel
+- [ ] Add Shipments tab to Admin.tsx:
+      - Lists submitted shipments with shipper, consignee, date
+      - Click to view shipment details and download the Excel for review
+      - Approve button → sets status to approved → sends email to operator:
+        "Your shipment documents have been approved and are ready to download."
+      - Reject button → sets status to rejected → operator sees rejection
+- [ ] GET /shipments/{id}/download — streams the approved Excel to operator.
+      Returns 403 if status is not approved.
+- [ ] Operator shipment page shows current status
+      (draft / submitted / approved / rejected) and Download button
+      that only activates once approved
+- [ ] Manual test: full export flow end to end —
+      build → OCR → stickers → invoice builder → generate →
+      preview → submit → admin approves → operator downloads
+- [ ] Commit: Phase 7 complete
+
+---
+
+## Phase 8 — Deploy to Railway
+
+- [ ] Upload all 6 template files to Supabase Storage bucket ipp-templates
+- [ ] backend/Dockerfile or Railway nixpacks auto-detect
+- [ ] Frontend Vite build deployed as static site on Railway
+- [ ] All production env vars set in Railway dashboard
 - [ ] Supabase RLS policies reviewed
 - [ ] Smoke test on production URL
+- [ ] Commit: Phase 8 complete
 
 ---
 
 ## Notes
 
-- Reset Cursor context (start new chat) at the start of each phase.
-- Each phase should be a clean PR or at least a tagged commit.
-- Templates stay at their file path — do not bundle them into the repo.
+- Reset Cursor context at the start of each phase.
+- Templates stay in Supabase Storage — never bundled into the repo.
+- Resend is used for notification emails only — no document attachments.
+- Stickers never go through approval. Only Invoice/PL/COA does.

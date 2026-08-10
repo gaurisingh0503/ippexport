@@ -9,10 +9,14 @@ from app.config import settings
 from app.db import Base
 
 # Import all models here so Alembic can detect them for autogenerate
-# from app.models import shipment, customer  # uncomment as models are added
+from app.models.material import Material  # noqa: F401
+from app.models.bundle import Bundle  # noqa: F401
+from app.models.customer import Customer  # noqa: F401
+from app.models.shipper import Shipper  # noqa: F401
+from app.models.shipment import Shipment  # noqa: F401
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
+config.set_main_option("sqlalchemy.url", settings.database_url_direct)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

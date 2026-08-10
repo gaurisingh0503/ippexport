@@ -1,0 +1,212 @@
+import { useState } from "react";
+import { Link } from "react-router-dom";
+
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { api } from "@/lib/api";
+import {
+  EMPTY_FORM,
+  EMPTY_PARTY,
+  formToCustomerInput,
+  MAX_NOTIFY_PARTIES,
+  type CustomerFormState,
+  type PartyFields,
+} from "@/lib/customer-form";
+import { ApiError } from "@/lib/http";
+
+type PartySectionProps = {
+  title: string;
+  party: PartyFields;
+  onChange: (party: PartyFields) => void;
+  onRemove?: () => void;
+  defaultOpen?: boolean;
+};
+
+function PartySection({ title, party, onChange, onRemove, defaultOpen = false }: PartySectionProps) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="rounded-md border p-3">
+      <div className="flex items-center justify-between gap-2">
+        <CollapsibleTrigger asChild>
+          <Button type="button" variant="ghost" className="flex-1 justify-between px-2">
+            {title}
+            <span className="text-muted-foreground">{open ? "−" : "+"}</span>
+          </Button>
+        </CollapsibleTrigger>
+        {onRemove && (
+          <Button type="button" variant="outline" size="sm" onClick={onRemove}>
+            Remove
+          </Button>
+        )}
+      </div>
+      <CollapsibleContent className="mt-3 space-y-3">
+        <div className="space-y-1">
+          <Label>Name</Label>
+          <Input
+            value={party.name}
+            onChange={(e) => onChange({ ...party, name: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label>Address</Label>
+          <Input
+            value={party.address}
+            onChange={(e) => onChange({ ...party, address: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label>Contact</Label>
+          <Input
+            value={party.contact}
+            onChange={(e) => onChange({ ...party, contact: e.target.value })}
+          />
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+export default function SubmitCustomer() {
+  const [form, setForm] = useState<CustomerFormState>(EMPTY_FORM);
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function updateConsignee(consignee: PartyFields) {
+    setForm((prev) => ({ ...prev, consignee }));
+  }
+
+  function updateNotifyParty(index: number, party: PartyFields) {
+    setForm((prev) => ({
+      ...prev,
+      notifyParties: prev.notifyParties.map((p, i) => (i === index ? party : p)),
+    }));
+  }
+
+  function addNotifyParty() {
+    if (form.notifyParties.length >= MAX_NOTIFY_PARTIES) return;
+    setForm((prev) => ({
+      ...prev,
+      notifyParties: [...prev.notifyParties, { ...EMPTY_PARTY }],
+    }));
+  }
+
+  function removeNotifyParty(index: number) {
+    if (form.notifyParties.length <= 1) return;
+    setForm((prev) => ({
+      ...prev,
+      notifyParties: prev.notifyParties.filter((_, i) => i !== index),
+    }));
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    setSuccess(false);
+
+    try {
+      await api.createCustomer(formToCustomerInput(form));
+      setSuccess(true);
+      setForm(EMPTY_FORM);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Submission failed");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto min-h-screen max-w-2xl space-y-6 p-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Submit Customer</h1>
+        <Button asChild variant="outline">
+          <Link to="/">Dashboard</Link>
+        </Button>
+      </div>
+
+      {success && (
+        <Alert>
+          <AlertDescription>Submitted for admin approval</AlertDescription>
+        </Alert>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-1">
+          <Label htmlFor="name">Customer Name</Label>
+          <Input
+            id="name"
+            value={form.name}
+            onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+            required
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="port">Port of Discharge</Label>
+          <Input
+            id="port"
+            value={form.port_of_discharge}
+            onChange={(e) => setForm((prev) => ({ ...prev, port_of_discharge: e.target.value }))}
+          />
+        </div>
+
+        <PartySection
+          title="Consignee"
+          party={form.consignee}
+          onChange={updateConsignee}
+          defaultOpen
+        />
+
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="font-medium">Notifying Parties</h2>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={form.notifyParties.length >= MAX_NOTIFY_PARTIES}
+              onClick={addNotifyParty}
+            >
+              Add notifying party
+            </Button>
+          </div>
+
+          {form.notifyParties.map((party, index) => (
+            <PartySection
+              key={index}
+              title={`Notifying Party ${index + 1}`}
+              party={party}
+              onChange={(updated) => updateNotifyParty(index, updated)}
+              onRemove={form.notifyParties.length > 1 ? () => removeNotifyParty(index) : undefined}
+              defaultOpen={index === 0}
+            />
+          ))}
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="payment">Payment Terms</Label>
+          <Input
+            id="payment"
+            value={form.payment_terms}
+            onChange={(e) => setForm((prev) => ({ ...prev, payment_terms: e.target.value }))}
+          />
+        </div>
+
+        {error && <p className="text-sm text-destructive">{error}</p>}
+
+        <Button type="submit" disabled={submitting}>
+          {submitting ? "Submitting…" : "Submit for approval"}
+        </Button>
+      </form>
+    </div>
+  );
+}
