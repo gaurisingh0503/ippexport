@@ -3,8 +3,6 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.schemas.entity import CustomerResponse, ShipperResponse
-
 
 class ShipmentCreate(BaseModel):
     type: str
@@ -14,6 +12,7 @@ class ShipmentCreate(BaseModel):
     notify2_id: uuid.UUID | None = None
     port_of_discharge: str | None = None
     payment_terms: str | None = None
+    unit_price_usd: float | None = None
 
 
 class ShipmentUpdate(BaseModel):
@@ -24,7 +23,24 @@ class ShipmentUpdate(BaseModel):
     notify2_id: uuid.UUID | None = None
     port_of_discharge: str | None = None
     payment_terms: str | None = None
+    unit_price_usd: float | None = None
     status: str | None = None
+
+
+class ShipmentShipperOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    slug: str
+    name: str
+    brand_color: str
+
+
+class ShipmentCustomerRef(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
 
 
 class ShipmentOut(BaseModel):
@@ -38,9 +54,10 @@ class ShipmentOut(BaseModel):
     notify2_id: uuid.UUID | None
     port_of_discharge: str | None
     payment_terms: str | None
+    unit_price_usd: float | None
     status: str
     created_at: datetime
-    shipper: ShipperResponse
-    consignee: CustomerResponse | None
-    notify1: CustomerResponse | None
-    notify2: CustomerResponse | None
+    shipper: ShipmentShipperOut
+    consignee: ShipmentCustomerRef | None
+    notify1: ShipmentCustomerRef | None
+    notify2: ShipmentCustomerRef | None

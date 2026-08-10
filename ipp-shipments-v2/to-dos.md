@@ -36,27 +36,21 @@ Check off each item as it is done and committed.
 
 ## Phase 3 — Shipment Builder (DnD UI) ✅
 
-Two separate processes: Stickers (both Domestic and Export) and
-Invoice/PL/COA (Export only, requires approval).
+Shipper selection only — customer/notify party DnD comes in Phase 6.
 
-- [x] DB table: shipments — id, type (domestic/export), shipper_id,
-      consignee_id, notify1_id, notify2_id, port_of_discharge,
-      payment_terms, status (draft/submitted/approved/rejected), created_at
+- [x] DB table: shipments — id, type, shipper_id, consignee_id, notify1_id,
+      notify2_id, port_of_discharge, payment_terms, unit_price_usd, status, created_at
 - [x] Alembic migration
 - [x] POST /shipments, GET /shipments, GET /shipments/{id}, PATCH /shipments/{id}
-- [x] src/pages/ShipmentGate.tsx — card picker: Domestic or Export
-- [x] src/pages/DomesticBuilder.tsx:
-      - Left panel: shipper cards (IPP, Rich-Siri)
-      - Right panel: Shipper drop zone only
-      - Confirm → POST /shipments → navigate to OCR (stickers)
-- [x] src/pages/ExportBuilder.tsx:
-      - Left panel: shipper cards + approved customer cards
-      - Right panel: Consignee, Shipper, Notify Party 1, Notify Party 2 drop zones
-      - Drop on Consignee auto-fills port_of_discharge + payment_terms
-      - Confirm → POST /shipments → navigate to OCR (stickers)
+- [x] src/components/ShipperCard.tsx — draggable shipper card with brand color
+- [x] src/components/DropZone.tsx — reusable drop zone
+- [x] src/pages/ShipmentGate.tsx — Domestic / Export card picker
+- [x] src/pages/DomesticBuilder.tsx — shipper DnD only → POST /shipments → OCR
+- [x] src/pages/ExportBuilder.tsx — shipper DnD only (customer DnD in Phase 6)
+- [x] Dashboard recent shipments list
 - [x] Add shipment routes to App.tsx
-- [x] Manual test: create a domestic and export shipment
-- [ ] Commit: Phase 3 complete
+- [x] Manual test: create domestic and export shipments
+- [x] Commit: Phase 3 complete
 
 ---
 

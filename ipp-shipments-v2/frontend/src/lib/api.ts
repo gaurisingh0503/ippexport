@@ -62,6 +62,9 @@ export type AuthUser = {
   role: string | null;
 };
 
+export type ShipmentShipperRef = Pick<Shipper, "id" | "slug" | "name" | "brand_color">;
+export type ShipmentCustomerRef = Pick<Customer, "id" | "name">;
+
 export type Shipment = {
   id: string;
   type: string;
@@ -71,12 +74,13 @@ export type Shipment = {
   notify2_id: string | null;
   port_of_discharge: string | null;
   payment_terms: string | null;
+  unit_price_usd: number | null;
   status: string;
   created_at: string;
-  shipper: Shipper;
-  consignee: Customer | null;
-  notify1: Customer | null;
-  notify2: Customer | null;
+  shipper: ShipmentShipperRef;
+  consignee: ShipmentCustomerRef | null;
+  notify1: ShipmentCustomerRef | null;
+  notify2: ShipmentCustomerRef | null;
 };
 
 export type ShipmentCreateInput = {
@@ -87,6 +91,7 @@ export type ShipmentCreateInput = {
   notify2_id?: string | null;
   port_of_discharge?: string | null;
   payment_terms?: string | null;
+  unit_price_usd?: number | null;
 };
 
 export type ShipmentUpdateInput = Partial<ShipmentCreateInput & { status: string }>;
