@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.auth import router as auth_router
 from app.api.batches import router as batches_router
 from app.api.customers import router as customers_router
+from app.api.export_documents import router as export_documents_router
 from app.api.materials import router as materials_router
 from app.api.shippers import router as shippers_router
 from app.config import settings
@@ -23,6 +24,7 @@ else:
 app.add_middleware(CORSMiddleware, **cors_kwargs)
 app.include_router(auth_router)
 app.include_router(customers_router)
+app.include_router(export_documents_router)
 app.include_router(materials_router)
 app.include_router(shippers_router)
 app.include_router(batches_router)

@@ -10,6 +10,7 @@ from app.db import Base
 
 from app.models.bundle import Bundle  # noqa: F401
 from app.models.customer import Customer  # noqa: F401
+from app.models.export_document import ExportDocument, ExportDocumentBatch  # noqa: F401
 from app.models.material import Material  # noqa: F401
 from app.models.shipper import Shipper  # noqa: F401
 from app.models.sticker_batch import StickerBatch  # noqa: F401

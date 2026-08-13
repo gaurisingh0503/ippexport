@@ -14,6 +14,7 @@ class StickerBatchUpdate(BaseModel):
     type: str | None = None
     shipper_id: uuid.UUID | None = None
     material_id: uuid.UUID | None = None
+    container_no: str | None = None
     sticker_file_url: str | None = None
     status: str | None = None
 
@@ -44,6 +45,7 @@ class StickerBatchOut(BaseModel):
     shipper_id: uuid.UUID
     material_id: uuid.UUID
     type: str
+    container_no: str | None
     sticker_file_url: str | None
     status: str
     created_at: datetime

@@ -48,6 +48,8 @@ class CustomerResponse(BaseModel):
     notify5_l3: str | None
     port_of_discharge: str | None
     payment_terms: str | None
+    material_name: str | None
+    coa_specifications: dict[str, str] | None
     status: str
     created_at: datetime
 
@@ -79,6 +81,8 @@ class CustomerCreate(BaseModel):
     notify5_l3: str | None = None
     port_of_discharge: str | None = None
     payment_terms: str | None = None
+    material_name: str | None = None
+    coa_specifications: dict[str, str] | None = None
 
 
 class CustomerUpdate(BaseModel):
@@ -108,6 +112,8 @@ class CustomerUpdate(BaseModel):
     notify5_l3: str | None = None
     port_of_discharge: str | None = None
     payment_terms: str | None = None
+    material_name: str | None = None
+    coa_specifications: dict[str, str] | None = None
 
 
 class MaterialResponse(BaseModel):

@@ -53,38 +53,42 @@ There is **no shipments table**.
 
 ---
 
-## Phase 4 — OCR
+## Phase 4 — OCR ✅
 
-- [x] app/services/ocr.py — Claude vision extraction
-- [x] DB table: bundles — FK sticker_batch_id, OCR fields, image_path
-- [ ] POST /batches/{id}/bundles — upload → OCR → store (update from old /shipments path)
-- [ ] Bundle upload UI at /batches/:id/ocr (replace OcrPlaceholder)
+- [x] app/services/ocr.py — Claude vision extraction (async client)
+- [x] DB table: bundles — FK sticker_batch_id, material_id, OCR fields, image_path
+- [x] POST /batches/{id}/bundles — upload → OCR → store with material matching
+- [x] GET/PATCH/DELETE /batches/{id}/bundles
+- [x] src/components/BundleCard.tsx — editable fields, material override, save/delete
+- [x] src/components/BundleUploadZone.tsx — drag-drop multi-upload
+- [x] src/pages/OcrPage.tsx — replaces OcrPlaceholder
+- [x] src/pages/StickersPlaceholder.tsx — Phase 5 stub
 - [ ] Commit: Phase 4 complete
 
 ---
 
 ## Phase 5 — Sticker Generation
 
-- [ ] generate_stickers(batch, bundles, template) via openpyxl
-- [ ] GET /batches/{id}/stickers — download sticker Excel
-- [ ] Sticker preview page
+- [x] generate_stickers(batch, bundles, template) via openpyxl
+- [x] GET /batches/{id}/stickers — download sticker Excel
+- [x] Sticker preview page
 - [ ] Commit: Phase 5 complete
 
 ---
 
 ## Phase 6 — Invoice / PL / COA (Export only)
 
-- [ ] Export invoice builder — customer/notify party DnD (after stickers confirmed)
-- [ ] Group export sticker batches into invoice
-- [ ] Generate Invoice + PL + COA documents
+- [x] Export invoice builder — customer/notify party DnD (after stickers confirmed)
+- [x] Group export sticker batches into invoice
+- [x] Generate Invoice + PL + COA documents
 - [ ] Commit: Phase 6 complete
 
 ---
 
 ## Phase 7 — Approval Workflow + Notifications
 
-- [ ] Resend email notifications
-- [ ] Admin approval for export documents
+- [x] Resend email notifications
+- [x] Admin approval for export documents
 - [ ] Commit: Phase 7 complete
 
 ---

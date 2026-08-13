@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -16,6 +15,7 @@ import {
   EMPTY_PARTY,
   formToCustomerInput,
   MAX_NOTIFY_PARTIES,
+  DEFAULT_COA_SPECIFICATIONS,
   type CustomerFormState,
   type PartyFields,
 } from "@/lib/customer-form";
@@ -126,12 +126,7 @@ export default function SubmitCustomer() {
 
   return (
     <div className="mx-auto min-h-screen max-w-2xl space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Submit Customer</h1>
-        <Button asChild variant="outline">
-          <Link to="/">Dashboard</Link>
-        </Button>
-      </div>
+      <h1 className="text-2xl font-semibold">Add New Customer</h1>
 
       {success && (
         <Alert>
@@ -156,6 +151,16 @@ export default function SubmitCustomer() {
             id="port"
             value={form.port_of_discharge}
             onChange={(e) => setForm((prev) => ({ ...prev, port_of_discharge: e.target.value }))}
+          />
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="material-name">Material name for export documents</Label>
+          <Input
+            id="material-name"
+            value={form.material_name}
+            onChange={(e) => setForm((prev) => ({ ...prev, material_name: e.target.value }))}
+            placeholder="For example: Pure Lead Ingots"
           />
         </div>
 
@@ -201,10 +206,39 @@ export default function SubmitCustomer() {
           />
         </div>
 
+        <Collapsible className="rounded-md border p-3">
+          <CollapsibleTrigger asChild>
+            <Button type="button" variant="ghost" className="w-full justify-between px-2">
+              COA specifications
+              <span className="text-muted-foreground">Edit limits</span>
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3 grid gap-3 sm:grid-cols-2">
+            {Object.entries(DEFAULT_COA_SPECIFICATIONS).map(([symbol]) => (
+              <div key={symbol} className="space-y-1">
+                <Label htmlFor={`spec-${symbol}`}>{symbol}</Label>
+                <Input
+                  id={`spec-${symbol}`}
+                  value={form.coa_specifications[symbol] ?? ""}
+                  onChange={(event) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      coa_specifications: {
+                        ...prev.coa_specifications,
+                        [symbol]: event.target.value,
+                      },
+                    }))
+                  }
+                />
+              </div>
+            ))}
+          </CollapsibleContent>
+        </Collapsible>
+
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Button type="submit" disabled={submitting}>
-          {submitting ? "Submitting…" : "Submit for approval"}
+          {submitting ? "Saving…" : "Add customer for approval"}
         </Button>
       </form>
     </div>

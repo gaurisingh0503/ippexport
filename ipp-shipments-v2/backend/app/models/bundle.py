@@ -15,7 +15,9 @@ class Bundle(Base):
     sticker_batch_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("sticker_batches.id"), nullable=False
     )
-    material_name: Mapped[str | None] = mapped_column(String(255))
+    material_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("materials.id"), nullable=True
+    )
     batch_no: Mapped[str | None] = mapped_column(String(255))
     bundle_no: Mapped[str | None] = mapped_column(String(255))
     ingot_count: Mapped[int | None] = mapped_column(Integer)
@@ -25,3 +27,4 @@ class Bundle(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     sticker_batch: Mapped["StickerBatch"] = relationship(back_populates="bundles")
+    material: Mapped["Material | None"] = relationship()

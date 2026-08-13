@@ -10,20 +10,30 @@ export type CustomerFormState = {
   name: string;
   port_of_discharge: string;
   payment_terms: string;
+  material_name: string;
   consignee: PartyFields;
   notifyParties: PartyFields[];
+  coa_specifications: Record<string, string>;
 };
 
 export const MAX_NOTIFY_PARTIES = 5;
 
 export const EMPTY_PARTY: PartyFields = { name: "", address: "", contact: "" };
+export const DEFAULT_COA_SPECIFICATIONS: Record<string, string> = {
+  Sn: "0.0010 Max", Sb: "0.0010 Max", Bi: "0.0150 Max", Cu: "0.0010 Max",
+  As: "0.0005 Max", Ag: "0.0025 Max", Cd: "0.0005 Max", Zn: "0.0005 Max",
+  Co: "0.0005 Max", Te: "0.0005 Max", Fe: "0.0005 Max", Ni: "0.0002 % Max",
+  Pb: "99.98 % Min",
+};
 
 export const EMPTY_FORM: CustomerFormState = {
   name: "",
   port_of_discharge: "",
   payment_terms: "",
+  material_name: "",
   consignee: { ...EMPTY_PARTY },
   notifyParties: [{ ...EMPTY_PARTY }],
+  coa_specifications: { ...DEFAULT_COA_SPECIFICATIONS },
 };
 
 const NOTIFY_PARTY_KEYS = [
@@ -66,6 +76,8 @@ export function formToCustomerInput(form: CustomerFormState): CustomerInput {
     notify5_l3: null,
     port_of_discharge: nullIfEmpty(form.port_of_discharge),
     payment_terms: nullIfEmpty(form.payment_terms),
+    material_name: nullIfEmpty(form.material_name),
+    coa_specifications: form.coa_specifications,
   };
 
   form.notifyParties.slice(0, MAX_NOTIFY_PARTIES).forEach((party, index) => {

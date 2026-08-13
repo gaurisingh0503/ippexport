@@ -17,6 +17,9 @@ class Settings(BaseSettings):
 
     environment: str = "development"
     cors_origins: str = "http://localhost:5173"
+    resend_api_key: str | None = None
+    resend_from_email: str | None = None
+    admin_email: str | None = None
 
     @property
     def cors_origins_list(self) -> list[str]:

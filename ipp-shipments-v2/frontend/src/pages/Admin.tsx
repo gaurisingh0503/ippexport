@@ -11,19 +11,22 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { api, type Customer } from "@/lib/api";
+import { api, type Customer, type ExportDocument } from "@/lib/api";
 import { consigneeDisplayName } from "@/lib/customer-form";
+import { isDemoMode } from "@/lib/demo-api";
 import { env } from "@/lib/env";
 import { supabase } from "@/lib/supabase";
 
 export default function Admin() {
+  const demoMode = isDemoMode();
   const [email, setEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [approved, setApproved] = useState<Customer[]>([]);
   const [pending, setPending] = useState<Customer[]>([]);
   const [actingOn, setActingOn] = useState<string | null>(null);
+  const [pendingDocuments, setPendingDocuments] = useState<ExportDocument[]>([]);
 
-  const isAdmin = email === env.adminEmail;
+  const isAdmin = demoMode || email?.toLowerCase() === env.adminEmail.toLowerCase();
 
   async function loadApproved() {
     setApproved(await api.getCustomers());
@@ -44,6 +47,7 @@ export default function Admin() {
     if (!isAdmin) return;
     loadApproved();
     loadPending();
+    api.getExportDocuments("pending_approval").then(setPendingDocuments);
   }, [isAdmin]);
 
   async function handleApprove(id: string) {
@@ -64,6 +68,40 @@ export default function Admin() {
     } finally {
       setActingOn(null);
     }
+  }
+
+  async function handleDocumentApprove(id: string) {
+    setActingOn(id);
+    try {
+      await api.approveExportDocument(id);
+      setPendingDocuments(await api.getExportDocuments("pending_approval"));
+    } finally {
+      setActingOn(null);
+    }
+  }
+
+  async function handleDocumentReject(id: string) {
+    const comment = window.prompt("Reason for rejection:");
+    if (!comment?.trim()) return;
+    setActingOn(id);
+    try {
+      await api.rejectExportDocument(id, comment.trim());
+      setPendingDocuments(await api.getExportDocuments("pending_approval"));
+    } finally {
+      setActingOn(null);
+    }
+  }
+
+  async function downloadDocument(id: string, kind: "invoice-packing" | "coa") {
+    const file = kind === "invoice-packing"
+      ? await api.downloadInvoicePacking(id)
+      : await api.downloadCoa(id);
+    const url = URL.createObjectURL(file.blob);
+    const anchor = window.document.createElement("a");
+    anchor.href = url;
+    anchor.download = file.filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
   }
 
   if (loading) {
@@ -87,13 +125,14 @@ export default function Admin() {
         </Button>
       </div>
 
-      <Tabs defaultValue="approved">
-        <TabsList>
-          <TabsTrigger value="approved">Approved</TabsTrigger>
-          <TabsTrigger value="pending">Pending Approvals</TabsTrigger>
+      <Tabs defaultValue="customers" className="grid gap-6 md:grid-cols-[180px_1fr]">
+        <TabsList className="h-fit flex-col items-stretch">
+          <TabsTrigger value="customers">Customer approvals</TabsTrigger>
+          <TabsTrigger value="documents">Document approvals</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="approved" className="mt-4">
+        <TabsContent value="customers" className="mt-0 space-y-6">
+          <h2 className="font-medium">Approved customers</h2>
           <Table>
             <TableHeader>
               <TableRow>
@@ -110,9 +149,7 @@ export default function Admin() {
               ))}
             </TableBody>
           </Table>
-        </TabsContent>
-
-        <TabsContent value="pending" className="mt-4">
+          <h2 className="font-medium">Pending customer approvals</h2>
           <Table>
             <TableHeader>
               <TableRow>
@@ -149,6 +186,24 @@ export default function Admin() {
                 </TableRow>
               ))}
             </TableBody>
+          </Table>
+        </TabsContent>
+        <TabsContent value="documents" className="mt-0">
+          <Table>
+            <TableHeader><TableRow><TableHead>Invoice</TableHead><TableHead>Shipper</TableHead><TableHead>Created</TableHead><TableHead className="w-72" /></TableRow></TableHeader>
+            <TableBody>{pendingDocuments.map((document) => (
+              <TableRow key={document.id}>
+                <TableCell>{document.invoice_no}</TableCell>
+                <TableCell>{document.shipper.name}</TableCell>
+                <TableCell>{new Date(document.created_at).toLocaleDateString()}</TableCell>
+                <TableCell className="space-x-2">
+                  <Button size="sm" variant="outline" onClick={() => void downloadDocument(document.id, "invoice-packing")}>Invoice / PL</Button>
+                  <Button size="sm" variant="outline" onClick={() => void downloadDocument(document.id, "coa")}>COA</Button>
+                  <Button size="sm" disabled={actingOn === document.id} onClick={() => handleDocumentApprove(document.id)}>Approve</Button>
+                  <Button size="sm" variant="destructive" disabled={actingOn === document.id} onClick={() => handleDocumentReject(document.id)}>Reject</Button>
+                </TableCell>
+              </TableRow>
+            ))}</TableBody>
           </Table>
         </TabsContent>
       </Tabs>

@@ -1,4 +1,5 @@
 // Typed API methods. Add endpoints here as each phase is built.
+import { demoApi, isDemoMode } from "./demo-api";
 import { http } from "./http";
 
 export type Customer = {
@@ -29,6 +30,8 @@ export type Customer = {
   notify5_l3: string | null;
   port_of_discharge: string | null;
   payment_terms: string | null;
+  material_name: string | null;
+  coa_specifications: Record<string, string> | null;
   status: string;
   created_at: string;
 };
@@ -73,6 +76,7 @@ export type StickerBatch = {
   shipper_id: string;
   material_id: string;
   type: string;
+  container_no: string | null;
   sticker_file_url: string | null;
   status: string;
   created_at: string;
@@ -87,8 +91,76 @@ export type StickerBatchCreateInput = {
 };
 
 export type StickerBatchUpdateInput = Partial<
-  StickerBatchCreateInput & { sticker_file_url: string | null; status: string }
+  StickerBatchCreateInput & {
+    container_no: string | null;
+    sticker_file_url: string | null;
+    status: string;
+  }
 >;
+
+export type BundleMaterial = Pick<
+  Material,
+  "id" | "material_name" | "hs_code" | "sticker_display_name" | "goods_description"
+>;
+
+export type Bundle = {
+  id: string;
+  sticker_batch_id: string;
+  material_id: string | null;
+  batch_no: string | null;
+  bundle_no: string | null;
+  ingot_count: number | null;
+  gross_weight: number | null;
+  net_weight: number | null;
+  image_path: string | null;
+  image_url: string | null;
+  created_at: string;
+  material: BundleMaterial | null;
+};
+
+export type BundleUpdateInput = {
+  material_id?: string | null;
+  batch_no?: string | null;
+  bundle_no?: string | null;
+  ingot_count?: number | null;
+  gross_weight?: number | null;
+  net_weight?: number | null;
+};
+
+export type ExportParty = {
+  name: string;
+  lines: string[];
+};
+
+export type ExportDocumentCreateInput = {
+  batch_ids: string[];
+  consignee: ExportParty;
+  notify1?: ExportParty | null;
+  notify2?: ExportParty | null;
+  invoice_no?: string | null;
+  invoice_date: string;
+  contract_no?: string | null;
+  bill_of_lading_no?: string | null;
+  port_of_discharge?: string | null;
+  term_of_delivery?: string | null;
+  payment_terms?: string | null;
+  unit_price_usd_t: number;
+  shipping_mark?: string | null;
+  production_date?: string | null;
+  customer_material_name?: string | null;
+  coa_specifications?: Record<string, string> | null;
+};
+
+export type ExportDocument = ExportDocumentCreateInput & {
+  id: string;
+  shipper_id: string;
+  created_at: string;
+  shipper: StickerBatchShipper;
+  batches: { sticker_batch_id: string; position: number }[];
+  coa_actuals: Record<string, Record<string, number | null>> | null;
+  status: string;
+  rejection_comment: string | null;
+};
 
 function customerQuery(status?: string): string {
   return status ? `/customers?status=${encodeURIComponent(status)}` : "/customers";
@@ -103,7 +175,7 @@ function batchQuery(params?: { type?: string; status?: string }): string {
   return query ? `/batches?${query}` : "/batches";
 }
 
-export const api = {
+const productionApi = {
   health: () => http.get<{ status: string }>("/health"),
   me: () => http.get<AuthUser>("/auth/me"),
   getCustomers: (status?: string) => http.get<Customer[]>(customerQuery(status)),
@@ -120,4 +192,36 @@ export const api = {
   getBatch: (id: string) => http.get<StickerBatch>(`/batches/${id}`),
   updateBatch: (id: string, data: StickerBatchUpdateInput) =>
     http.patch<StickerBatch>(`/batches/${id}`, data),
+  uploadBundle: (batchId: string, file: File) =>
+    http.upload<Bundle[]>(`/batches/${batchId}/bundles`, file),
+  getBundles: (batchId: string) => http.get<Bundle[]>(`/batches/${batchId}/bundles`),
+  updateBundle: (batchId: string, bundleId: string, data: BundleUpdateInput) =>
+    http.patch<Bundle>(`/batches/${batchId}/bundles/${bundleId}`, data),
+  deleteBundle: (batchId: string, bundleId: string) =>
+    http.delete<void>(`/batches/${batchId}/bundles/${bundleId}`),
+  downloadStickers: (batchId: string) => http.download(`/batches/${batchId}/stickers`),
+  createExportDocument: (data: ExportDocumentCreateInput) =>
+    http.post<ExportDocument>("/export-documents", data),
+  getExportDocuments: (status?: string) =>
+    http.get<ExportDocument[]>(status ? `/export-documents?status=${encodeURIComponent(status)}` : "/export-documents"),
+  getExportDocument: (id: string) => http.get<ExportDocument>(`/export-documents/${id}`),
+  downloadInvoicePacking: (id: string) => http.download(`/export-documents/${id}/invoice-packing`),
+  downloadCoa: (id: string) => http.download(`/export-documents/${id}/coa`),
+  uploadCoaActuals: (id: string, batchNo: string, file: File) =>
+    http.upload<ExportDocument>(`/export-documents/${id}/coa-actuals/${encodeURIComponent(batchNo)}`, file),
+  submitExportDocument: (id: string) => http.patch<ExportDocument>(`/export-documents/${id}/submit-approval`, {}),
+  approveExportDocument: (id: string) => http.patch<ExportDocument>(`/export-documents/${id}/approve`, {}),
+  rejectExportDocument: (id: string, comment: string) =>
+    http.patch<ExportDocument>(`/export-documents/${id}/reject`, { comment }),
+  updateCoaSpecifications: (id: string, coaSpecifications: Record<string, string>) =>
+    http.patch<ExportDocument>(`/export-documents/${id}/coa-specifications`, { coa_specifications: coaSpecifications }),
 };
+
+export const api: typeof productionApi = new Proxy(productionApi, {
+  get(target, property, receiver) {
+    if (isDemoMode()) {
+      return Reflect.get(demoApi, property, receiver);
+    }
+    return Reflect.get(target, property, receiver);
+  },
+});

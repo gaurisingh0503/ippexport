@@ -3,9 +3,11 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.sticker_batch import MaterialNested
+
 
 class BundleUpdate(BaseModel):
-    material_name: str | None = None
+    material_id: uuid.UUID | None = None
     batch_no: str | None = None
     bundle_no: str | None = None
     ingot_count: int | None = None
@@ -18,7 +20,7 @@ class BundleOut(BaseModel):
 
     id: uuid.UUID
     sticker_batch_id: uuid.UUID
-    material_name: str | None
+    material_id: uuid.UUID | None
     batch_no: str | None
     bundle_no: str | None
     ingot_count: int | None
@@ -27,3 +29,4 @@ class BundleOut(BaseModel):
     image_path: str | None
     image_url: str | None = None
     created_at: datetime
+    material: MaterialNested | None

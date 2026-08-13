@@ -15,6 +15,7 @@ class StickerBatch(Base):
     shipper_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("shippers.id"), nullable=False)
     material_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("materials.id"), nullable=False)
     type: Mapped[str] = mapped_column(String(20), nullable=False)
+    container_no: Mapped[str | None] = mapped_column(String(255))
     sticker_file_url: Mapped[str | None] = mapped_column(String(512))
     status: Mapped[str] = mapped_column(String(30), nullable=False, server_default="draft")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

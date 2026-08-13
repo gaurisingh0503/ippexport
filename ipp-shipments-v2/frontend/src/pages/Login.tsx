@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { signIn } from "@/lib/supabase";
 
-export default function Login() {
+export default function Login({ onDemo }: { onDemo: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +57,9 @@ export default function Login() {
             {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Signing in…" : "Sign in"}
+            </Button>
+            <Button type="button" variant="outline" className="w-full" onClick={onDemo}>
+              Explore demo
             </Button>
           </form>
         </CardContent>
