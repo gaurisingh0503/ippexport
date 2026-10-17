@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ShipperResponse(BaseModel):
@@ -83,7 +83,7 @@ class CustomerCreate(BaseModel):
     port_of_discharge: str | None = None
     payment_terms: str | None = None
     material_name: str | None = None
-    customer_code: str | None = None
+    customer_code: str | None = Field(default=None, max_length=2)
     coa_specifications: dict[str, str] | None = None
 
 
@@ -115,7 +115,7 @@ class CustomerUpdate(BaseModel):
     port_of_discharge: str | None = None
     payment_terms: str | None = None
     material_name: str | None = None
-    customer_code: str | None = None
+    customer_code: str | None = Field(default=None, max_length=2)
     coa_specifications: dict[str, str] | None = None
 
 

@@ -151,8 +151,8 @@ export default function SubmitCustomer() {
             id="customer-code"
             value={form.customer_code}
             onChange={(e) => setForm((prev) => ({ ...prev, customer_code: e.target.value }))}
-            placeholder="e.g. AR (used in invoice number)"
-            maxLength={20}
+            placeholder="e.g. AR (2 letters, used in invoice number)"
+            maxLength={2}
           />
         </div>
 
