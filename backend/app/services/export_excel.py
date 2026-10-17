@@ -240,11 +240,11 @@ def _populate_coa(workbook: Workbook, document: ExportDocument) -> None:
         worksheet.title = f"COA_{bundle.batch_no}"
         for merged_range in list(worksheet.merged_cells.ranges):
             worksheet.unmerge_cells(str(merged_range))
-        worksheet["A4"] = document.consignee["name"]
-        worksheet["F4"] = document.invoice_no
-        worksheet["H4"] = document.invoice_date
-        worksheet["F6"] = document.production_date
-        worksheet["H6"] = bundle.batch_no
+        _merge_value(worksheet, "A4:E4", document.consignee["name"])
+        _merge_value(worksheet, "F4:G4", document.invoice_no)
+        _merge_value(worksheet, "H4:I4", document.invoice_date)
+        _merge_value(worksheet, "F6:G11", document.production_date)
+        _merge_value(worksheet, "H6:I11", bundle.batch_no)
         if document.notify1:
             lines = [document.notify1["name"], *document.notify1["lines"]]
             for i, line in enumerate(lines[:6]):
