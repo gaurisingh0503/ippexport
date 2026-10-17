@@ -22,8 +22,8 @@ _ALEMBIC_INI = Path(__file__).resolve().parent.parent / "alembic.ini"
 
 def _run_migrations() -> None:
     alembic_cfg = Config(str(_ALEMBIC_INI))
-    # Override URL here so configparser never sees the % in the password
-    alembic_cfg.set_main_option("sqlalchemy.url", settings.database_url_direct)
+    # Escape % → %% so configparser's interpolation doesn't choke on URL-encoded chars
+    alembic_cfg.set_main_option("sqlalchemy.url", settings.database_url_direct.replace("%", "%%"))
     command.upgrade(alembic_cfg, "head")
 
 
