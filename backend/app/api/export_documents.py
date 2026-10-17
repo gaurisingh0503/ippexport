@@ -297,6 +297,10 @@ async def download_coa(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except httpx.HTTPStatusError as exc:
         raise HTTPException(status_code=502, detail="COA template could not be loaded") from exc
+    except Exception as exc:
+        import traceback, logging
+        logging.error("COA generation failed: %s\n%s", exc, traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"COA generation error: {type(exc).__name__}: {exc}") from exc
 
     filename = f"coa-{document.invoice_no}.xlsx"
     return StreamingResponse(
