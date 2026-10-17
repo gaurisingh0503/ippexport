@@ -29,7 +29,7 @@ export function apiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, retries = 3): Promise<T> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -45,6 +45,10 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   } catch {
+    if (retries > 0) {
+      await new Promise((r) => setTimeout(r, 2000));
+      return request<T>(method, path, body, retries - 1);
+    }
     throw new ApiError(0, "Network error", true);
   }
 
