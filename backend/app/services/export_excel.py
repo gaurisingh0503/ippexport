@@ -114,6 +114,9 @@ def _populate_address_fields(ws: Worksheet, document: ExportDocument) -> None:
     ws["F10"] = document.port_of_discharge
     ws["F12"] = document.term_of_delivery
     ws["F12"].alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+    if document.term_of_delivery:
+        lines = max(1, -(-len(document.term_of_delivery) // 25))  # ceil div, ~25 chars per line
+        ws.row_dimensions[12].height = max(15, lines * 15)
     _merge_value(ws, "H12:I13", document.bill_of_lading_no)
     _merge_value(ws, "F15:I24", document.contract_no)
 
