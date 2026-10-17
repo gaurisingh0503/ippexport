@@ -238,6 +238,8 @@ def _populate_coa(workbook: Workbook, document: ExportDocument) -> None:
         bundle = batch.bundles[0]
         material = bundle.material
         worksheet.title = f"COA_{bundle.batch_no}"
+        for merged_range in list(worksheet.merged_cells.ranges):
+            worksheet.unmerge_cells(str(merged_range))
         worksheet["B8"] = document.consignee["name"]
         worksheet["G8"] = document.invoice_no
         worksheet["I8"] = document.invoice_date
