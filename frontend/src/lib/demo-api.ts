@@ -91,6 +91,7 @@ const customers: Customer[] = [
     port_of_discharge: "Busan, Korea",
     payment_terms: "FOB",
     material_name: "Refined Lead Ingot",
+    customer_code: "DM",
     coa_specifications: { Pb: "99.97 min", Sb: "0.002 max", Sn: "0.001 max" },
     status: "approved",
     created_at: createdAt,
