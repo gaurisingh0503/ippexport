@@ -16,7 +16,7 @@ from app.models.shipper import Shipper  # noqa: F401
 from app.models.sticker_batch import StickerBatch  # noqa: F401
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url_direct)
+config.set_main_option("sqlalchemy.url", settings.database_url_direct.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
