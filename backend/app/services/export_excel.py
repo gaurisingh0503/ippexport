@@ -238,23 +238,26 @@ def _populate_coa(workbook: Workbook, document: ExportDocument) -> None:
         bundle = batch.bundles[0]
         material = bundle.material
         worksheet.title = f"COA_{bundle.batch_no}"
-        worksheet["A4"] = document.consignee["name"]
-        worksheet["H4"] = document.invoice_date
-        worksheet["H5"] = bundle.batch_no
-        worksheet["F5"] = document.production_date
+        worksheet["B8"] = document.consignee["name"]
+        worksheet["G8"] = document.invoice_no
+        worksheet["I8"] = document.invoice_date
+        worksheet["G10"] = document.production_date
+        worksheet["I10"] = bundle.batch_no
         if document.notify1:
-            _write_party(worksheet, "A", 6, document.notify1)
-        worksheet["A20"] = (
+            _write_party(worksheet, "B", 10, document.notify1)
+        if document.notify2:
+            _write_party(worksheet, "B", 18, document.notify2)
+        worksheet["B24"] = (
             f"Goods Description - {document.customer_material_name or material.goods_description or material.material_name}"
             if material
             else "Goods Description"
         )
-        for row in range(22, 35):
-            symbol = worksheet[f"E{row}"].value
+        for row in range(26, 39):
+            symbol = worksheet[f"F{row}"].value
             if symbol and document.coa_specifications:
-                worksheet[f"F{row}"] = document.coa_specifications.get(symbol, worksheet[f"F{row}"].value)
+                worksheet[f"G{row}"] = document.coa_specifications.get(symbol, worksheet[f"G{row}"].value)
             if symbol and document.coa_actuals:
-                worksheet[f"H{row}"] = document.coa_actuals.get(bundle.batch_no, {}).get(symbol)
+                worksheet[f"I{row}"] = document.coa_actuals.get(bundle.batch_no, {}).get(symbol)
 
     for worksheet in coa_sheets[len(batches) :]:
         workbook.remove(worksheet)
