@@ -29,7 +29,7 @@ export function apiErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-async function request<T>(method: string, path: string, body?: unknown, retries = 3): Promise<T> {
+async function request<T>(method: string, path: string, body?: unknown, retries = 10): Promise<T> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -46,7 +46,7 @@ async function request<T>(method: string, path: string, body?: unknown, retries 
     });
   } catch {
     if (retries > 0) {
-      await new Promise((r) => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, 3000));
       return request<T>(method, path, body, retries - 1);
     }
     throw new ApiError(0, "Network error", true);
@@ -94,7 +94,7 @@ async function upload<T>(path: string, file: File): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-async function download(path: string): Promise<{ blob: Blob; filename: string }> {
+async function download(path: string, retries = 10): Promise<{ blob: Blob; filename: string }> {
   const {
     data: { session },
   } = await supabase.auth.getSession();
@@ -106,6 +106,10 @@ async function download(path: string): Promise<{ blob: Blob; filename: string }>
   try {
     res = await fetch(`${env.apiBaseUrl}${path}`, { headers });
   } catch {
+    if (retries > 0) {
+      await new Promise((r) => setTimeout(r, 3000));
+      return download(path, retries - 1);
+    }
     throw new ApiError(0, "Network error", true);
   }
 
