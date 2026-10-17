@@ -118,9 +118,9 @@ async def create_export_document(
         count = await db.scalar(
             select(func.count())
             .select_from(ExportDocument)
-            .where(ExportDocument.invoice_date == body.invoice_date)
+            .where(func.extract("year", ExportDocument.invoice_date) == body.invoice_date.year)
         )
-        invoice_no = f"INV-{body.invoice_date:%Y%m%d}-{(count or 0) + 1:03d}"
+        invoice_no = f"INV/EX/AR/{body.invoice_date:%y}/{(count or 0) + 1:03d}"
 
     document = ExportDocument(
         shipper_id=selected_batches[0].shipper_id,

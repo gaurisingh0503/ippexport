@@ -55,6 +55,42 @@ def _merge_value(ws: Worksheet, cell_range: str, value: object) -> None:
     cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
 
+def _amount_in_words(amount: float) -> str:
+    ones = [
+        "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine",
+        "Ten", "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen",
+        "Seventeen", "Eighteen", "Nineteen",
+    ]
+    tens = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"]
+
+    def _below_thousand(n: int) -> str:
+        if n == 0:
+            return ""
+        if n < 20:
+            return ones[n]
+        if n < 100:
+            return tens[n // 10] + (" " + ones[n % 10] if n % 10 else "")
+        rest = _below_thousand(n % 100)
+        return ones[n // 100] + " Hundred" + (" " + rest if rest else "")
+
+    cents = round((amount % 1) * 100)
+    dollars = int(amount)
+    if dollars == 0:
+        words = "Zero"
+    else:
+        parts = []
+        if dollars // 1_000_000_000:
+            parts.append(_below_thousand(dollars // 1_000_000_000) + " Billion")
+        if (dollars % 1_000_000_000) // 1_000_000:
+            parts.append(_below_thousand((dollars % 1_000_000_000) // 1_000_000) + " Million")
+        if (dollars % 1_000_000) // 1_000:
+            parts.append(_below_thousand((dollars % 1_000_000) // 1_000) + " Thousand")
+        if dollars % 1_000:
+            parts.append(_below_thousand(dollars % 1_000))
+        words = " ".join(parts)
+    return f"US Dollars {words} and {cents:02d}/100 Only"
+
+
 def _batches(document: ExportDocument) -> list[StickerBatch]:
     return [item.sticker_batch for item in sorted(document.batches, key=lambda item: item.position)]
 
@@ -150,6 +186,7 @@ def _populate_invoice_packing(workbook: Workbook, document: ExportDocument) -> N
     invoice["G26"] = sum(bundle.net_weight or 0 for bundle in bundles) / 1000
     invoice["I26"] = document.unit_price_usd_t * invoice["G26"].value
     invoice["I27"] = invoice["I26"].value
+    invoice["A29"] = _amount_in_words(invoice["I27"].value or 0)
     invoice["D34"] = invoice["G26"].value
     invoice["D35"] = sum(bundle.gross_weight or 0 for bundle in bundles) / 1000
     invoice["D36"] = len(bundles)
@@ -168,7 +205,16 @@ def _populate_invoice_packing(workbook: Workbook, document: ExportDocument) -> N
     for container_index, batch in enumerate(batches, start=1):
         if not batch.container_no:
             raise ValueError("Every grouped batch needs a container number")
-        container_groups.append((container_index, batch.container_no, batch.bundles))
+        # Group bundles by batch_no (production run/lot); each unique lot = one container slot
+        seen: dict[str, list] = {}
+        for bundle in batch.bundles:
+            key = bundle.batch_no or ""
+            seen.setdefault(key, []).append(bundle)
+        if len(seen) <= 1:
+            container_groups.append((container_index, batch.container_no, list(batch.bundles)))
+        else:
+            for lot_bundles in seen.values():
+                container_groups.append((container_index, batch.container_no, lot_bundles))
 
     container_sheets = [container_12, container_34]
     required_sheets = max(1, (len(container_groups) + 1) // 2)
