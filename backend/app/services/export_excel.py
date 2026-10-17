@@ -240,26 +240,30 @@ def _populate_coa(workbook: Workbook, document: ExportDocument) -> None:
         worksheet.title = f"COA_{bundle.batch_no}"
         for merged_range in list(worksheet.merged_cells.ranges):
             worksheet.unmerge_cells(str(merged_range))
-        worksheet["B8"] = document.consignee["name"]
-        worksheet["G8"] = document.invoice_no
-        worksheet["I8"] = document.invoice_date
-        worksheet["G10"] = document.production_date
-        worksheet["I10"] = bundle.batch_no
+        worksheet["A4"] = document.consignee["name"]
+        worksheet["F4"] = document.invoice_no
+        worksheet["H4"] = document.invoice_date
+        worksheet["F6"] = document.production_date
+        worksheet["H6"] = bundle.batch_no
         if document.notify1:
-            _write_party(worksheet, "B", 10, document.notify1)
+            lines = [document.notify1["name"], *document.notify1["lines"]]
+            for i, line in enumerate(lines[:6]):
+                worksheet[f"A{6 + i}"] = line
         if document.notify2:
-            _write_party(worksheet, "B", 18, document.notify2)
-        worksheet["B24"] = (
+            lines = [document.notify2["name"], *document.notify2["lines"]]
+            for i, line in enumerate(lines[:6]):
+                worksheet[f"A{13 + i}"] = line
+        worksheet["A20"] = (
             f"Goods Description - {document.customer_material_name or material.goods_description or material.material_name}"
             if material
             else "Goods Description"
         )
-        for row in range(26, 39):
-            symbol = worksheet[f"F{row}"].value
+        for row in range(22, 35):
+            symbol = worksheet[f"E{row}"].value
             if symbol and document.coa_specifications:
-                worksheet[f"G{row}"] = document.coa_specifications.get(symbol, worksheet[f"G{row}"].value)
+                worksheet[f"F{row}"] = document.coa_specifications.get(symbol, worksheet[f"F{row}"].value)
             if symbol and document.coa_actuals:
-                worksheet[f"I{row}"] = document.coa_actuals.get(bundle.batch_no, {}).get(symbol)
+                worksheet[f"H{row}"] = document.coa_actuals.get(bundle.batch_no, {}).get(symbol)
 
     for worksheet in coa_sheets[len(batches) :]:
         workbook.remove(worksheet)
