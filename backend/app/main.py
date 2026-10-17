@@ -1,4 +1,6 @@
+import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
@@ -13,15 +15,22 @@ from app.api.materials import router as materials_router
 from app.api.shippers import router as shippers_router
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
+_ALEMBIC_INI = Path(__file__).resolve().parent.parent.parent / "alembic.ini"
+
 
 def _run_migrations() -> None:
-    alembic_cfg = Config("alembic.ini")
+    alembic_cfg = Config(str(_ALEMBIC_INI))
     command.upgrade(alembic_cfg, "head")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    _run_migrations()
+    try:
+        _run_migrations()
+    except Exception:
+        logger.exception("Migration failed — server will start but DB may be out of date")
     yield
 
 
