@@ -19,7 +19,25 @@ export default function CoaDocumentPage() {
     api.getExportDocument(id)
       .then(async (loadedDocument) => {
         setDocument(loadedDocument);
-        setSpecifications(loadedDocument.coa_specifications ?? {});
+
+        // Use document specs; if absent, fall back to the matching customer's defaults
+        if (loadedDocument.coa_specifications && Object.keys(loadedDocument.coa_specifications).length > 0) {
+          setSpecifications(loadedDocument.coa_specifications);
+        } else {
+          try {
+            const customers = await api.getCustomers();
+            const consigneeName = loadedDocument.consignee?.name?.toLowerCase() ?? "";
+            const match = customers.find(
+              (c) => c.consignee_l1 && consigneeName.includes(c.consignee_l1.toLowerCase()),
+            );
+            if (match?.coa_specifications && Object.keys(match.coa_specifications).length > 0) {
+              setSpecifications(match.coa_specifications);
+            }
+          } catch {
+            // silently ignore — specs will just be blank for manual entry
+          }
+        }
+
         const bundles = await Promise.all(loadedDocument.batches.map((batch) => api.getBundles(batch.sticker_batch_id)));
         setLots([...new Set(bundles.flat().map((bundle) => bundle.batch_no).filter((lot): lot is string => Boolean(lot)))]);
       })

@@ -113,6 +113,7 @@ def _populate_address_fields(ws: Worksheet, document: ExportDocument) -> None:
         _write_party(ws, "A", 20, document.notify2)
     ws["F10"] = document.port_of_discharge
     ws["F12"] = document.term_of_delivery
+    ws["F12"].alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
     _merge_value(ws, "H12:I13", document.bill_of_lading_no)
     _merge_value(ws, "F15:I24", document.contract_no)
 
