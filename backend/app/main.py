@@ -7,6 +7,7 @@ from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.engine import make_url
 
 from app.api.auth import router as auth_router
 from app.api.batches import router as batches_router
@@ -34,7 +35,9 @@ async def lifespan(app: FastAPI):
         # Run in a thread so asyncio.run() inside env.py gets a fresh event loop
         await asyncio.to_thread(_run_migrations)
     except Exception:
-        logger.exception("Migration failed — server will start but DB may be out of date")
+        # Host only (no credentials) so an unreachable DATABASE_URL_DIRECT is obvious in logs
+        host = make_url(settings.database_url_direct).host
+        logger.exception("Migration failed (host=%s) — server will start but DB may be out of date", host)
     yield
 
 

@@ -19,7 +19,9 @@ config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url_direct.replace("%", "%%"))
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # The app runs migrations in-process at startup; the default (True) would silence
+    # uvicorn's and the app's loggers, hiding any migration failure.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 
