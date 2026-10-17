@@ -49,6 +49,7 @@ class CustomerResponse(BaseModel):
     port_of_discharge: str | None
     payment_terms: str | None
     material_name: str | None
+    customer_code: str | None
     coa_specifications: dict[str, str] | None
     status: str
     created_at: datetime
@@ -82,6 +83,7 @@ class CustomerCreate(BaseModel):
     port_of_discharge: str | None = None
     payment_terms: str | None = None
     material_name: str | None = None
+    customer_code: str | None = None
     coa_specifications: dict[str, str] | None = None
 
 
@@ -113,6 +115,7 @@ class CustomerUpdate(BaseModel):
     port_of_discharge: str | None = None
     payment_terms: str | None = None
     material_name: str | None = None
+    customer_code: str | None = None
     coa_specifications: dict[str, str] | None = None
 
 

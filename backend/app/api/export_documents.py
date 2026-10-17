@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 from app.auth.deps import get_current_user
 from app.config import settings
 from app.db import get_db
+from app.models.customer import Customer
 from app.models.export_document import ExportDocument, ExportDocumentBatch
 from app.models.bundle import Bundle
 from app.models.sticker_batch import StickerBatch
@@ -115,12 +116,25 @@ async def create_export_document(
 
     invoice_no = body.invoice_no.strip() if body.invoice_no else ""
     if not invoice_no:
+        consignee_name = (body.consignee.name or "").lower()
+        customers = list(
+            (
+                await db.scalars(
+                    select(Customer).where(Customer.customer_code.isnot(None))
+                )
+            ).all()
+        )
+        customer_code = "XX"
+        for customer in customers:
+            if customer.consignee_l1 and consignee_name and customer.consignee_l1.lower() in consignee_name:
+                customer_code = customer.customer_code or "XX"
+                break
         count = await db.scalar(
             select(func.count())
             .select_from(ExportDocument)
             .where(func.extract("year", ExportDocument.invoice_date) == body.invoice_date.year)
         )
-        invoice_no = f"INV/EX/AR/{body.invoice_date:%y}/{(count or 0) + 1:03d}"
+        invoice_no = f"INV/EX/{customer_code}/{body.invoice_date:%y}/{(count or 0) + 1:03d}"
 
     document = ExportDocument(
         shipper_id=selected_batches[0].shipper_id,

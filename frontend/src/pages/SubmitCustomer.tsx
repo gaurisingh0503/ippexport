@@ -146,6 +146,17 @@ export default function SubmitCustomer() {
         </div>
 
         <div className="space-y-1">
+          <Label htmlFor="customer-code">Customer Code</Label>
+          <Input
+            id="customer-code"
+            value={form.customer_code}
+            onChange={(e) => setForm((prev) => ({ ...prev, customer_code: e.target.value }))}
+            placeholder="e.g. AR (used in invoice number)"
+            maxLength={20}
+          />
+        </div>
+
+        <div className="space-y-1">
           <Label htmlFor="port">Port of Discharge</Label>
           <Input
             id="port"

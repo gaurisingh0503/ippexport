@@ -8,6 +8,7 @@ export type PartyFields = {
 
 export type CustomerFormState = {
   name: string;
+  customer_code: string;
   port_of_discharge: string;
   payment_terms: string;
   material_name: string;
@@ -28,6 +29,7 @@ export const DEFAULT_COA_SPECIFICATIONS: Record<string, string> = {
 
 export const EMPTY_FORM: CustomerFormState = {
   name: "",
+  customer_code: "",
   port_of_discharge: "",
   payment_terms: "",
   material_name: "",
@@ -51,6 +53,7 @@ function nullIfEmpty(value: string): string | null {
 export function formToCustomerInput(form: CustomerFormState): CustomerInput {
   const payload: CustomerInput = {
     name: form.name.trim(),
+    customer_code: nullIfEmpty(form.customer_code),
     consignee_l1: nullIfEmpty(form.consignee.name),
     consignee_l2: nullIfEmpty(form.consignee.address),
     consignee_l3: nullIfEmpty(form.consignee.contact),

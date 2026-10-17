@@ -31,6 +31,7 @@ export type Customer = {
   port_of_discharge: string | null;
   payment_terms: string | null;
   material_name: string | null;
+  customer_code: string | null;
   coa_specifications: Record<string, string> | null;
   status: string;
   created_at: string;
