@@ -12,7 +12,7 @@ type DropZoneProps = {
   id: string;
   label: string;
   item: DroppedShipper | null;
-  onRemove: () => void;
+  onRemove?: () => void;
 };
 
 export default function DropZone({ id, label, item, onRemove }: DropZoneProps) {
@@ -35,14 +35,16 @@ export default function DropZone({ id, label, item, onRemove }: DropZoneProps) {
           >
             <div className="flex items-start justify-between gap-2">
               <p className="font-medium">{item.name}</p>
-              <button
-                type="button"
-                onClick={onRemove}
-                className="text-muted-foreground hover:text-foreground"
-                aria-label="Remove"
-              >
-                ✕
-              </button>
+              {onRemove && (
+                <button
+                  type="button"
+                  onClick={onRemove}
+                  className="text-muted-foreground hover:text-foreground"
+                  aria-label="Remove"
+                >
+                  ✕
+                </button>
+              )}
             </div>
           </div>
         ) : (

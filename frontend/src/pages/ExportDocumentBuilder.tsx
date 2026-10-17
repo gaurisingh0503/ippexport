@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DndContext,
   type DragEndEvent,
@@ -7,7 +7,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { Loader2 } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 import ExportPartyCard, {
   type DraggableExportParty,
@@ -23,7 +23,7 @@ import {
   type Customer,
   type ExportDocumentCreateInput,
   type ExportParty,
-  type StickerBatch,
+  type Shipper,
 } from "@/lib/api";
 import { apiErrorMessage } from "@/lib/http";
 
@@ -79,10 +79,10 @@ const today = new Date().toISOString().slice(0, 10);
 
 export default function ExportDocumentBuilder() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [batches, setBatches] = useState<StickerBatch[]>([]);
-  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
+  const [shippers, setShippers] = useState<Shipper[]>([]);
+  const [shipperId, setShipperId] = useState("");
+  const [packingListNetWeight, setPackingListNetWeight] = useState("");
   const [consignee, setConsignee] = useState<ExportParty | null>(null);
   const [notify1, setNotify1] = useState<ExportParty | null>(null);
   const [notify2, setNotify2] = useState<ExportParty | null>(null);
@@ -104,35 +104,19 @@ export default function ExportDocumentBuilder() {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   useEffect(() => {
-    Promise.all([api.getCustomers(), api.getBatches({ type: "export" })])
-      .then(([customerData, batchData]) => {
+    Promise.all([api.getCustomers(), api.getShippers()])
+      .then(([customerData, shipperData]) => {
         setCustomers(customerData);
-        setBatches(batchData);
-        const initialBatchId = searchParams.get("batchId");
-        if (initialBatchId && batchData.some((batch) => batch.id === initialBatchId)) {
-          setSelectedBatchIds([initialBatchId]);
-        }
+        setShippers(shipperData);
+        if (shipperData.length === 1) setShipperId(shipperData[0].id);
       })
-      .catch((err) => setError(apiErrorMessage(err, "Failed to load export document data")))
+      .catch((err) => setError(apiErrorMessage(err, "Failed to load customers and shippers")))
       .finally(() => setLoading(false));
-  }, [searchParams]);
+  }, []);
 
-  const selectedBatches = useMemo(
-    () => batches.filter((batch) => selectedBatchIds.includes(batch.id)),
-    [batches, selectedBatchIds],
-  );
-  const selectedShipperId = selectedBatches[0]?.shipper_id;
-
-  function toggleBatch(batch: StickerBatch) {
-    if (selectedShipperId && batch.shipper_id !== selectedShipperId) {
-      setError("An invoice group can include batches from only one shipper.");
-      return;
-    }
-    setError(null);
-    setSelectedBatchIds((current) =>
-      current.includes(batch.id) ? current.filter((id) => id !== batch.id) : [...current, batch.id],
-    );
-  }
+  const netWeightValue = Number(packingListNetWeight);
+  const canCreate =
+    Boolean(consignee) && Boolean(shipperId) && unitPrice.trim() !== "" && netWeightValue > 0;
 
   function handleDragEnd({ active, over }: DragEndEvent) {
     if (!over) return;
@@ -154,12 +138,14 @@ export default function ExportDocumentBuilder() {
   }
 
   async function handleCreate() {
-    if (!consignee || selectedBatchIds.length === 0 || !unitPrice.trim()) return;
+    if (!canCreate || !consignee) return;
     setSubmitting(true);
     setError(null);
     try {
       const data: ExportDocumentCreateInput = {
-        batch_ids: selectedBatchIds,
+        shipper_id: shipperId,
+        batch_ids: [],
+        packing_list_net_weight: netWeightValue,
         consignee,
         notify1,
         notify2,
@@ -179,7 +165,7 @@ export default function ExportDocumentBuilder() {
       const document = await api.createExportDocument(data);
       navigate(`/export-documents/${document.id}`);
     } catch (err) {
-      setError(apiErrorMessage(err, "Failed to create export document group"));
+      setError(apiErrorMessage(err, "Failed to create export shipment"));
     } finally {
       setSubmitting(false);
     }
@@ -196,7 +182,7 @@ export default function ExportDocumentBuilder() {
   return (
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <BuilderLayout
-        title="Export Document Builder"
+        title="New Export Shipment — Packing List"
         backTo="/"
         sourcePanel={
           <div className="space-y-5">
@@ -226,11 +212,40 @@ export default function ExportDocumentBuilder() {
           <div className="space-y-6">
             <div>
               <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                Parties and commercial terms
+                Packing list
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Drag customer records into the document address fields.
+                Start the shipment from the packing list. Drag customer records into the address fields.
+                Stickers are added next and checked against the packing list net weight.
               </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label htmlFor="shipper">Shipper</Label>
+                <select
+                  id="shipper"
+                  value={shipperId}
+                  onChange={(event) => setShipperId(event.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select shipper</option>
+                  {shippers.map((shipper) => (
+                    <option key={shipper.id} value={shipper.id}>{shipper.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="packing-net">Packing list total net weight (kg)</Label>
+                <Input
+                  id="packing-net"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={packingListNetWeight}
+                  onChange={(event) => setPackingListNetWeight(event.target.value)}
+                />
+              </div>
             </div>
             <ExportPartyDropZone
               id="consignee-zone"
@@ -301,32 +316,17 @@ export default function ExportDocumentBuilder() {
                 </select>
               </div>
             </div>
-            <div className="space-y-2">
-              <h2 className="text-sm font-medium">Completed export sticker batches</h2>
-              {batches.map((batch) => (
-                <label key={batch.id} className="flex cursor-pointer items-center gap-3 rounded-md border p-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedBatchIds.includes(batch.id)}
-                    onChange={() => toggleBatch(batch)}
-                  />
-                  <span>
-                    {batch.shipper.name} · {batch.material.sticker_display_name} · {batch.container_no ?? "No container"}
-                  </span>
-                </label>
-              ))}
-            </div>
           </div>
         }
         footer={
           <div className="flex items-center justify-end gap-4">
             {error && <Alert variant="destructive" className="flex-1"><AlertDescription>{error}</AlertDescription></Alert>}
             <Button
-              disabled={!consignee || selectedBatchIds.length === 0 || !unitPrice.trim() || submitting}
+              disabled={!canCreate || submitting}
               onClick={() => void handleCreate()}
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create documents
+              Create shipment
             </Button>
           </div>
         }

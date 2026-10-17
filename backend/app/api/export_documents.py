@@ -1,4 +1,7 @@
+import base64
+import logging
 import uuid
+from datetime import datetime, timezone
 from typing import Annotated
 
 import httpx
@@ -8,26 +11,34 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.auth.deps import get_current_user
+from app.auth.deps import get_current_user, require_admin
 from app.config import settings
 from app.db import get_db
 from app.models.customer import Customer
 from app.models.export_document import ExportDocument, ExportDocumentBatch
 from app.models.bundle import Bundle
+from app.models.shipper import Shipper
 from app.models.sticker_batch import StickerBatch
-from app.schemas.export_document import ExportDocumentCreate, ExportDocumentOut, ExportDocumentReject, ExportDocumentSpecifications
+from app.schemas.export_document import (
+    ExportDocumentAttachBatch,
+    ExportDocumentCreate,
+    ExportDocumentOut,
+    ExportDocumentPackingList,
+    ExportDocumentReject,
+    ExportDocumentSpecifications,
+)
 from app.services.export_excel import generate_coa, generate_invoice_packing
 from app.services.ocr import extract_coa_actuals
 from app.services.storage import upload_storage_object
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/export-documents", tags=["export-documents"])
 
-_DOCUMENT_LOAD = (
-    selectinload(ExportDocument.shipper),
-    selectinload(ExportDocument.batches),
-)
+_REQUIRED_BUNDLE_FIELDS = ("material_id", "batch_no", "bundle_no", "ingot_count", "gross_weight", "net_weight")
+_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-_DOCUMENT_GENERATION_LOAD = (
+_DOCUMENT_LOAD = (
     selectinload(ExportDocument.shipper),
     selectinload(ExportDocument.batches)
     .selectinload(ExportDocumentBatch.sticker_batch)
@@ -40,24 +51,45 @@ async def _get_document_or_404(
     db: AsyncSession, document_id: uuid.UUID
 ) -> ExportDocument:
     document = await db.scalar(
-        select(ExportDocument).where(ExportDocument.id == document_id).options(*_DOCUMENT_LOAD)
-    )
-    if document is None:
-        raise HTTPException(status_code=404, detail="Export document group not found")
-    return document
-
-
-async def _get_document_for_generation_or_404(
-    db: AsyncSession, document_id: uuid.UUID
-) -> ExportDocument:
-    document = await db.scalar(
         select(ExportDocument)
         .where(ExportDocument.id == document_id)
-        .options(*_DOCUMENT_GENERATION_LOAD)
+        .options(*_DOCUMENT_LOAD)
+        .execution_options(populate_existing=True)
     )
     if document is None:
-        raise HTTPException(status_code=404, detail="Export document group not found")
+        raise HTTPException(status_code=404, detail="Export shipment not found")
     return document
+
+
+def _ensure_editable(document: ExportDocument) -> None:
+    if document.status not in {"draft", "rejected"}:
+        raise HTTPException(status_code=422, detail="This shipment is locked after it was sent for approval")
+
+
+def _ensure_ready_for_documents(document: ExportDocument) -> None:
+    if not document.batches:
+        raise HTTPException(status_code=422, detail="Add at least one sticker batch to this shipment first")
+    for item in document.batches:
+        bundles = item.sticker_batch.bundles
+        if not bundles or any(
+            any(getattr(bundle, field) is None for field in _REQUIRED_BUNDLE_FIELDS) for bundle in bundles
+        ):
+            raise HTTPException(status_code=422, detail="Complete every sticker batch before generating documents")
+    if document.packing_list_net_weight is None:
+        raise HTTPException(status_code=422, detail="Enter the packing list net weight first")
+    if not document.net_weight_cleared:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Sticker net weight ({document.stickers_net_weight:g} kg) does not match the packing list "
+                f"({document.packing_list_net_weight:g} kg). An admin must approve the mismatch."
+            ),
+        )
+
+
+def _reset_override(document: ExportDocument) -> None:
+    document.net_weight_override_by = None
+    document.net_weight_override_at = None
 
 
 @router.get("", response_model=list[ExportDocumentOut])
@@ -90,29 +122,22 @@ async def create_export_document(
 ) -> ExportDocument:
     selected_batches = list(
         (
-            await db.scalars(
-                select(StickerBatch)
-                .where(StickerBatch.id.in_(body.batch_ids))
-                .options(selectinload(StickerBatch.bundles))
-            )
+            await db.scalars(select(StickerBatch).where(StickerBatch.id.in_(body.batch_ids)))
         ).all()
-    )
+    ) if body.batch_ids else []
     if len(selected_batches) != len(set(body.batch_ids)):
         raise HTTPException(status_code=404, detail="One or more sticker batches were not found")
     if any(batch.type != "export" for batch in selected_batches):
-        raise HTTPException(status_code=422, detail="Only export batches can be grouped into documents")
+        raise HTTPException(status_code=422, detail="Only export batches can be added to a shipment")
 
     shipper_ids = {batch.shipper_id for batch in selected_batches}
+    if body.shipper_id:
+        shipper_ids.add(body.shipper_id)
     if len(shipper_ids) != 1:
-        raise HTTPException(status_code=422, detail="All grouped batches must use the same shipper")
-
-    required_fields = ("material_id", "batch_no", "bundle_no", "ingot_count", "gross_weight", "net_weight")
-    if any(
-        not batch.bundles
-        or any(any(getattr(bundle, field) is None for field in required_fields) for bundle in batch.bundles)
-        for batch in selected_batches
-    ):
-        raise HTTPException(status_code=422, detail="Complete every selected batch before creating documents")
+        raise HTTPException(status_code=422, detail="Choose one shipper for the whole shipment")
+    shipper_id = shipper_ids.pop()
+    if await db.get(Shipper, shipper_id) is None:
+        raise HTTPException(status_code=404, detail="Shipper not found")
 
     invoice_no = body.invoice_no.strip() if body.invoice_no else ""
     if not invoice_no:
@@ -137,7 +162,8 @@ async def create_export_document(
         invoice_no = f"INV/EX/{customer_code}/{body.invoice_date:%y}/{(count or 0) + 1:03d}"
 
     document = ExportDocument(
-        shipper_id=selected_batches[0].shipper_id,
+        shipper_id=shipper_id,
+        packing_list_net_weight=body.packing_list_net_weight,
         invoice_no=invoice_no,
         invoice_date=body.invoice_date,
         contract_no=body.contract_no,
@@ -165,6 +191,125 @@ async def create_export_document(
     return await _get_document_or_404(db, document.id)
 
 
+@router.post("/{document_id}/batches", response_model=ExportDocumentOut)
+async def attach_batch(
+    document_id: uuid.UUID,
+    body: ExportDocumentAttachBatch,
+    _user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ExportDocument:
+    document = await _get_document_or_404(db, document_id)
+    _ensure_editable(document)
+    batch = await db.get(StickerBatch, body.batch_id)
+    if batch is None:
+        raise HTTPException(status_code=404, detail="Sticker batch not found")
+    if batch.type != "export":
+        raise HTTPException(status_code=422, detail="Only export batches can be added to a shipment")
+    if batch.shipper_id != document.shipper_id:
+        raise HTTPException(status_code=422, detail="This batch belongs to a different shipper")
+    existing = await db.scalar(
+        select(ExportDocumentBatch).where(ExportDocumentBatch.sticker_batch_id == batch.id)
+    )
+    if existing is not None:
+        if existing.export_document_id == document.id:
+            return document
+        raise HTTPException(status_code=422, detail="This batch is already part of another shipment")
+    document.batches.append(
+        ExportDocumentBatch(sticker_batch_id=batch.id, position=len(document.batches))
+    )
+    _reset_override(document)
+    await db.commit()
+    return await _get_document_or_404(db, document_id)
+
+
+@router.delete("/{document_id}/batches/{batch_id}", response_model=ExportDocumentOut)
+async def detach_batch(
+    document_id: uuid.UUID,
+    batch_id: uuid.UUID,
+    _user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ExportDocument:
+    document = await _get_document_or_404(db, document_id)
+    _ensure_editable(document)
+    document.batches = [item for item in document.batches if item.sticker_batch_id != batch_id]
+    for position, item in enumerate(sorted(document.batches, key=lambda item: item.position)):
+        item.position = position
+    _reset_override(document)
+    await db.commit()
+    return await _get_document_or_404(db, document_id)
+
+
+@router.patch("/{document_id}/packing-list", response_model=ExportDocumentOut)
+async def update_packing_list(
+    document_id: uuid.UUID,
+    body: ExportDocumentPackingList,
+    _user: Annotated[dict, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ExportDocument:
+    document = await _get_document_or_404(db, document_id)
+    _ensure_editable(document)
+    document.packing_list_net_weight = body.packing_list_net_weight
+    _reset_override(document)
+    await db.commit()
+    return await _get_document_or_404(db, document_id)
+
+
+@router.patch("/{document_id}/net-weight-override", response_model=ExportDocumentOut)
+async def override_net_weight(
+    document_id: uuid.UUID,
+    admin: Annotated[dict, Depends(require_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ExportDocument:
+    document = await _get_document_or_404(db, document_id)
+    _ensure_editable(document)
+    if document.packing_list_net_weight is None:
+        raise HTTPException(status_code=422, detail="Enter the packing list net weight first")
+    document.net_weight_override_by = admin.get("email")
+    document.net_weight_override_at = datetime.now(timezone.utc)
+    await db.commit()
+    return await _get_document_or_404(db, document_id)
+
+
+async def _send_approval_emails(document: ExportDocument, attachments: list[dict]) -> None:
+    if not (settings.resend_api_key and settings.resend_from_email and settings.admin_emails_list):
+        return
+    mismatch_note = ""
+    if not document.net_weight_matches:
+        mismatch_note = (
+            f"<p><strong>Net weight mismatch approved by {document.net_weight_override_by}:</strong> "
+            f"stickers {document.stickers_net_weight:g} kg vs packing list "
+            f"{document.packing_list_net_weight:g} kg.</p>"
+        )
+    html = (
+        f"<p>{document.invoice_no} ({document.consignee['name']}) is ready for approval.</p>"
+        f"<p>Net weight: {document.stickers_net_weight:g} kg.</p>{mismatch_note}"
+        "<p>The invoice &amp; packing list and the COA are attached.</p>"
+    )
+    sent = 0
+    async with httpx.AsyncClient(timeout=30) as client:
+        # One email per admin: the Resend test sender rejects the whole send if any recipient is unverified.
+        for admin_email in settings.admin_emails_list:
+            try:
+                response = await client.post(
+                    "https://api.resend.com/emails",
+                    headers={"Authorization": f"Bearer {settings.resend_api_key}"},
+                    json={
+                        "from": settings.resend_from_email,
+                        "to": [admin_email],
+                        "subject": f"Approval requested: {document.invoice_no}",
+                        "html": html,
+                        "attachments": attachments,
+                    },
+                )
+                response.raise_for_status()
+                sent += 1
+            except httpx.HTTPError as exc:
+                detail = exc.response.text if isinstance(exc, httpx.HTTPStatusError) else str(exc)
+                logger.error("Approval email to %s failed: %s", admin_email, detail)
+    if sent == 0:
+        raise HTTPException(status_code=502, detail="Approval notification could not be sent")
+
+
 @router.patch("/{document_id}/submit-approval", response_model=ExportDocumentOut)
 async def submit_for_approval(
     document_id: uuid.UUID,
@@ -172,21 +317,19 @@ async def submit_for_approval(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ExportDocument:
     document = await _get_document_or_404(db, document_id)
-    if document.status not in {"draft", "rejected"}:
-        raise HTTPException(status_code=422, detail="Only draft or rejected documents can be submitted")
-    if settings.resend_api_key and settings.resend_from_email and settings.admin_email:
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                "https://api.resend.com/emails",
-                headers={"Authorization": f"Bearer {settings.resend_api_key}"},
-                json={"from": settings.resend_from_email, "to": [settings.admin_email],
-                      "subject": f"Approval requested: {document.invoice_no}",
-                      "html": f"<p>{document.invoice_no} is ready for approval.</p>"},
-                )
-                response.raise_for_status()
-        except httpx.HTTPError as exc:
-            raise HTTPException(status_code=502, detail="Approval notification could not be sent") from exc
+    _ensure_editable(document)
+    _ensure_ready_for_documents(document)
+    try:
+        invoice_packing = await generate_invoice_packing(document)
+        coa = await generate_coa(document)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    safe_invoice_no = document.invoice_no.replace("/", "-")
+    attachments = [
+        {"filename": f"invoice-packing-{safe_invoice_no}.xlsx", "content": base64.b64encode(invoice_packing).decode()},
+        {"filename": f"coa-{safe_invoice_no}.xlsx", "content": base64.b64encode(coa).decode()},
+    ]
+    await _send_approval_emails(document, attachments)
     document.status = "pending_approval"
     document.rejection_comment = None
     await db.commit()
@@ -196,11 +339,9 @@ async def submit_for_approval(
 @router.patch("/{document_id}/approve", response_model=ExportDocumentOut)
 async def approve_export_document(
     document_id: uuid.UUID,
-    _user: Annotated[dict, Depends(get_current_user)],
+    _admin: Annotated[dict, Depends(require_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ExportDocument:
-    if not settings.admin_email or _user.get("email", "").lower() != settings.admin_email.lower():
-        raise HTTPException(status_code=403, detail="Only the configured admin can approve documents")
     document = await _get_document_or_404(db, document_id)
     document.status = "approved"
     document.rejection_comment = None
@@ -212,11 +353,9 @@ async def approve_export_document(
 async def reject_export_document(
     document_id: uuid.UUID,
     body: ExportDocumentReject,
-    _user: Annotated[dict, Depends(get_current_user)],
+    _admin: Annotated[dict, Depends(require_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ExportDocument:
-    if not settings.admin_email or _user.get("email", "").lower() != settings.admin_email.lower():
-        raise HTTPException(status_code=403, detail="Only the configured admin can reject documents")
     document = await _get_document_or_404(db, document_id)
     document.status = "rejected"
     document.rejection_comment = body.comment
@@ -232,8 +371,7 @@ async def update_coa_specifications(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ExportDocument:
     document = await _get_document_or_404(db, document_id)
-    if document.status not in {"draft", "rejected"}:
-        raise HTTPException(status_code=422, detail="Specifications cannot be changed after submission")
+    _ensure_editable(document)
     document.coa_specifications = body.coa_specifications
     await db.commit()
     return await _get_document_or_404(db, document_id)
@@ -268,7 +406,8 @@ async def download_invoice_packing(
     _user: Annotated[dict, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> StreamingResponse:
-    document = await _get_document_for_generation_or_404(db, document_id)
+    document = await _get_document_or_404(db, document_id)
+    _ensure_ready_for_documents(document)
     try:
         contents = await generate_invoice_packing(document)
     except ValueError as exc:
@@ -276,7 +415,7 @@ async def download_invoice_packing(
     except httpx.HTTPStatusError as exc:
         raise HTTPException(status_code=502, detail="Invoice template could not be loaded") from exc
 
-    filename = f"invoice-packing-{document.invoice_no}.xlsx"
+    filename = f"invoice-packing-{document.invoice_no}.xlsx".replace("/", "-")
     return StreamingResponse(
         iter([contents]),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -290,7 +429,7 @@ async def download_coa(
     _user: Annotated[dict, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> StreamingResponse:
-    document = await _get_document_for_generation_or_404(db, document_id)
+    document = await _get_document_or_404(db, document_id)
     try:
         contents = await generate_coa(document)
     except ValueError as exc:
@@ -298,11 +437,10 @@ async def download_coa(
     except httpx.HTTPStatusError as exc:
         raise HTTPException(status_code=502, detail="COA template could not be loaded") from exc
     except Exception as exc:
-        import traceback, logging
-        logging.error("COA generation failed: %s\n%s", exc, traceback.format_exc())
+        logger.exception("COA generation failed")
         raise HTTPException(status_code=500, detail=f"COA generation error: {type(exc).__name__}: {exc}") from exc
 
-    filename = f"coa-{document.invoice_no}.xlsx"
+    filename = f"coa-{document.invoice_no}.xlsx".replace("/", "-")
     return StreamingResponse(
         iter([contents]),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

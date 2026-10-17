@@ -187,6 +187,12 @@ const documents: ExportDocument[] = [
     coa_actuals: { "R2-54": { Pb: 99.98, Sb: 0.0005, Sn: 0.0004 } },
     status: "draft",
     rejection_comment: null,
+    packing_list_net_weight: 2400,
+    stickers_net_weight: 2400,
+    net_weight_matches: true,
+    net_weight_cleared: true,
+    net_weight_override_by: null,
+    net_weight_override_at: null,
   },
 ];
 
@@ -247,6 +253,10 @@ export const demoApi = {
   downloadInvoicePacking: async (_id: string) => sampleWorkbook("demo-invoice-packing.xls"),
   downloadCoa: async (_id: string) => sampleWorkbook("demo-coa.xls"),
   uploadCoaActuals: async (id: string, _batchNo: string, _file: File) => getDocument(id),
+  attachBatch: async (id: string, _batchId: string) => getDocument(id),
+  detachBatch: async (id: string, _batchId: string) => getDocument(id),
+  updatePackingList: async (id: string, _netWeight: number) => getDocument(id),
+  overrideNetWeight: async (id: string) => getDocument(id),
   submitExportDocument: async (id: string) => getDocument(id),
   approveExportDocument: async (id: string) => getDocument(id),
   rejectExportDocument: async (id: string, _comment: string) => getDocument(id),

@@ -20,10 +20,24 @@ class Settings(BaseSettings):
     resend_api_key: str | None = None
     resend_from_email: str | None = None
     admin_email: str | None = None
+    admin_emails: str = ""
+    user_emails: str = ""
 
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",")]
+
+    @property
+    def admin_emails_list(self) -> list[str]:
+        emails = [e.strip().lower() for e in self.admin_emails.split(",") if e.strip()]
+        if self.admin_email and self.admin_email.strip().lower() not in emails:
+            emails.append(self.admin_email.strip().lower())
+        return emails
+
+    @property
+    def allowed_emails_list(self) -> list[str]:
+        users = [e.strip().lower() for e in self.user_emails.split(",") if e.strip()]
+        return [*self.admin_emails_list, *users]
 
 
 settings = Settings()  # type: ignore[call-arg]  # pydantic-settings reads from env

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   DndContext,
   DragEndEvent,
@@ -27,6 +27,9 @@ type BatchBuilderProps = {
 
 export default function BatchBuilder({ type, title, subtitle }: BatchBuilderProps) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const shipmentId = type === "export" ? searchParams.get("shipmentId") : null;
+  const shipmentShipperId = searchParams.get("shipperId");
   const [shippers, setShippers] = useState<Shipper[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [droppedShipper, setDroppedShipper] = useState<Shipper | null>(null);
@@ -42,16 +45,18 @@ export default function BatchBuilder({ type, title, subtitle }: BatchBuilderProp
       .then(([shipperList, materialList]) => {
         setShippers(shipperList);
         setMaterials(materialList);
+        const locked = shipmentShipperId && shipperList.find((shipper) => shipper.id === shipmentShipperId);
+        if (locked) setDroppedShipper(locked);
       })
       .catch(() => setError("Failed to load shippers and materials"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [shipmentShipperId]);
 
   const selectedMaterial = materials.find((m) => m.id === materialId) ?? null;
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over || over.id !== "shipper-zone") return;
+    if (!over || over.id !== "shipper-zone" || shipmentShipperId) return;
 
     const data = active.data.current;
     if (data?.type === "shipper") {
@@ -70,6 +75,7 @@ export default function BatchBuilder({ type, title, subtitle }: BatchBuilderProp
         shipper_id: droppedShipper.id,
         material_id: materialId,
       });
+      if (shipmentId) await api.attachBatch(shipmentId, batch.id);
       navigate(`/batches/${batch.id}/ocr`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to create batch");
@@ -89,7 +95,7 @@ export default function BatchBuilder({ type, title, subtitle }: BatchBuilderProp
     <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
       <BuilderLayout
         title={title}
-        backTo="/batches/new"
+        backTo={shipmentId ? `/export-documents/${shipmentId}` : "/"}
         sourcePanel={
           <div className="space-y-3">
             <h2 className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
@@ -131,7 +137,7 @@ export default function BatchBuilder({ type, title, subtitle }: BatchBuilderProp
                     }
                   : null
               }
-              onRemove={() => setDroppedShipper(null)}
+              onRemove={shipmentShipperId ? undefined : () => setDroppedShipper(null)}
             />
 
             <div className="space-y-2">

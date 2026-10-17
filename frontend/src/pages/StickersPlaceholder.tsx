@@ -14,6 +14,7 @@ export default function StickersPlaceholder() {
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shipmentId, setShipmentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!batchId) return;
@@ -24,6 +25,14 @@ export default function StickersPlaceholder() {
       })
       .catch((err) => setError(apiErrorMessage(err, "Failed to load sticker preview")))
       .finally(() => setLoading(false));
+    api.getExportDocuments()
+      .then((documents) => {
+        const shipment = documents.find((document) =>
+          document.batches.some((item) => item.sticker_batch_id === batchId),
+        );
+        setShipmentId(shipment?.id ?? null);
+      })
+      .catch(() => setShipmentId(null));
   }, [batchId]);
 
   const ready = useMemo(
@@ -85,9 +94,9 @@ export default function StickersPlaceholder() {
           <Button asChild variant="outline">
             <Link to={`/batches/${batchId}/ocr`}>Back to bundles</Link>
           </Button>
-          {batch.type === "export" && (
-            <Button asChild variant="outline" disabled={!ready}>
-              <Link to={`/export-documents/new?batchId=${batchId}`}>Create export documents</Link>
+          {shipmentId && (
+            <Button asChild variant="outline">
+              <Link to={`/export-documents/${shipmentId}`}>Back to shipment</Link>
             </Button>
           )}
           <Button disabled={!ready || downloading} onClick={() => void handleDownload()}>

@@ -134,7 +134,9 @@ export type ExportParty = {
 };
 
 export type ExportDocumentCreateInput = {
+  shipper_id?: string | null;
   batch_ids: string[];
+  packing_list_net_weight?: number | null;
   consignee: ExportParty;
   notify1?: ExportParty | null;
   notify2?: ExportParty | null;
@@ -161,6 +163,11 @@ export type ExportDocument = ExportDocumentCreateInput & {
   coa_actuals: Record<string, Record<string, number | null>> | null;
   status: string;
   rejection_comment: string | null;
+  stickers_net_weight: number;
+  net_weight_matches: boolean;
+  net_weight_cleared: boolean;
+  net_weight_override_by: string | null;
+  net_weight_override_at: string | null;
 };
 
 function customerQuery(status?: string): string {
@@ -210,6 +217,14 @@ const productionApi = {
   downloadCoa: (id: string) => http.download(`/export-documents/${id}/coa`),
   uploadCoaActuals: (id: string, batchNo: string, file: File) =>
     http.upload<ExportDocument>(`/export-documents/${id}/coa-actuals/${encodeURIComponent(batchNo)}`, file),
+  attachBatch: (id: string, batchId: string) =>
+    http.post<ExportDocument>(`/export-documents/${id}/batches`, { batch_id: batchId }),
+  detachBatch: (id: string, batchId: string) =>
+    http.delete<ExportDocument>(`/export-documents/${id}/batches/${batchId}`),
+  updatePackingList: (id: string, netWeight: number) =>
+    http.patch<ExportDocument>(`/export-documents/${id}/packing-list`, { packing_list_net_weight: netWeight }),
+  overrideNetWeight: (id: string) =>
+    http.patch<ExportDocument>(`/export-documents/${id}/net-weight-override`, {}),
   submitExportDocument: (id: string) => http.patch<ExportDocument>(`/export-documents/${id}/submit-approval`, {}),
   approveExportDocument: (id: string) => http.patch<ExportDocument>(`/export-documents/${id}/approve`, {}),
   rejectExportDocument: (id: string, comment: string) =>

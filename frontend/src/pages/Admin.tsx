@@ -13,20 +13,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api, type Customer, type ExportDocument } from "@/lib/api";
 import { consigneeDisplayName } from "@/lib/customer-form";
-import { isDemoMode } from "@/lib/demo-api";
-import { env } from "@/lib/env";
-import { supabase } from "@/lib/supabase";
 
-export default function Admin() {
-  const demoMode = isDemoMode();
-  const [email, setEmail] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function Admin({ isAdmin }: { isAdmin: boolean }) {
   const [approved, setApproved] = useState<Customer[]>([]);
   const [pending, setPending] = useState<Customer[]>([]);
   const [actingOn, setActingOn] = useState<string | null>(null);
   const [pendingDocuments, setPendingDocuments] = useState<ExportDocument[]>([]);
-
-  const isAdmin = demoMode || email?.toLowerCase() === env.adminEmail.toLowerCase();
 
   async function loadApproved() {
     setApproved(await api.getCustomers());
@@ -35,13 +27,6 @@ export default function Admin() {
   async function loadPending() {
     setPending(await api.getCustomers("pending"));
   }
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setEmail(session?.user.email ?? null);
-      setLoading(false);
-    });
-  }, []);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -102,14 +87,6 @@ export default function Admin() {
     anchor.download = file.filename;
     anchor.click();
     URL.revokeObjectURL(url);
-  }
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading…</p>
-      </div>
-    );
   }
 
   if (!isAdmin) {

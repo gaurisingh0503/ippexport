@@ -8,6 +8,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
 
+NET_WEIGHT_TOLERANCE_KG = 0.5
+
 
 class ExportDocument(Base):
     __tablename__ = "export_documents"
@@ -34,6 +36,9 @@ class ExportDocument(Base):
     customer_material_name: Mapped[str | None] = mapped_column(String(255))
     rejection_comment: Mapped[str | None] = mapped_column(String(2000))
     coa_specifications: Mapped[dict[str, str] | None] = mapped_column(JSONB)
+    packing_list_net_weight: Mapped[float | None] = mapped_column(Float)
+    net_weight_override_by: Mapped[str | None] = mapped_column(String(255))
+    net_weight_override_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -42,6 +47,22 @@ class ExportDocument(Base):
     batches: Mapped[list["ExportDocumentBatch"]] = relationship(
         back_populates="export_document", cascade="all, delete-orphan"
     )
+
+    @property
+    def stickers_net_weight(self) -> float:
+        return round(
+            sum(bundle.net_weight or 0 for item in self.batches for bundle in item.sticker_batch.bundles), 3
+        )
+
+    @property
+    def net_weight_matches(self) -> bool:
+        if self.packing_list_net_weight is None:
+            return False
+        return abs(self.stickers_net_weight - self.packing_list_net_weight) <= NET_WEIGHT_TOLERANCE_KG
+
+    @property
+    def net_weight_cleared(self) -> bool:
+        return self.net_weight_matches or self.net_weight_override_by is not None
 
 
 class ExportDocumentBatch(Base):

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.deps import get_current_user
+from app.auth.deps import get_current_user, require_admin
 from app.db import get_db
 from app.models.customer import Customer
 from app.schemas.entity import CustomerCreate, CustomerResponse, CustomerUpdate
@@ -52,7 +52,7 @@ async def create_customer(
 @router.patch("/{customer_id}/approve", response_model=CustomerResponse)
 async def approve_customer(
     customer_id: uuid.UUID,
-    _user: Annotated[dict, Depends(get_current_user)],
+    _user: Annotated[dict, Depends(require_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Customer:
     customer = await db.get(Customer, customer_id)
@@ -68,7 +68,7 @@ async def approve_customer(
 @router.patch("/{customer_id}/reject", response_model=CustomerResponse)
 async def reject_customer(
     customer_id: uuid.UUID,
-    _user: Annotated[dict, Depends(get_current_user)],
+    _user: Annotated[dict, Depends(require_admin)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Customer:
     customer = await db.get(Customer, customer_id)

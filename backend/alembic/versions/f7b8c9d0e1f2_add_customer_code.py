@@ -7,7 +7,6 @@ Revises: e5f6a7b8c9d0
 from typing import Sequence, Union
 
 from alembic import op
-from sqlalchemy import Column, String
 
 revision: str = "f7b8c9d0e1f2"
 down_revision: Union[str, None] = "e5f6a7b8c9d0"
@@ -16,7 +15,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("customers", Column("customer_code", String(2), nullable=True))
+    op.execute("ALTER TABLE customers ADD COLUMN IF NOT EXISTS customer_code VARCHAR(2)")
 
 
 def downgrade() -> None:

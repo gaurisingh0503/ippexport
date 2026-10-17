@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 
-import { supabase } from "@/lib/supabase";
+import { api, type AuthUser } from "@/lib/api";
+import { ApiError } from "@/lib/http";
+import { signOut, supabase } from "@/lib/supabase";
 import Admin from "@/pages/Admin";
-import BatchGate from "@/pages/BatchGate";
 import CoaDocumentPage from "@/pages/CoaDocumentPage";
 import CustomerDirectory from "@/pages/CustomerDirectory";
 import Dashboard from "@/pages/Dashboard";
@@ -36,6 +37,8 @@ function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [demoMode, setDemoMode] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [me, setMe] = useState<AuthUser | null>(null);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
@@ -55,6 +58,28 @@ function App() {
   useEffect(() => {
     setDemoApiMode(demoMode);
   }, [demoMode]);
+
+  const accessToken = session?.access_token;
+  useEffect(() => {
+    if (!accessToken || demoMode) {
+      setMe(null);
+      setAuthError(null);
+      return;
+    }
+    api.me()
+      .then((user) => {
+        setMe(user);
+        setAuthError(null);
+      })
+      .catch((err) => {
+        setMe(null);
+        setAuthError(
+          err instanceof ApiError && err.status === 403
+            ? "This account doesn't have access to IPP Shipments. Ask an admin to add your email."
+            : "Couldn't check your account. Please refresh the page.",
+        );
+      });
+  }, [accessToken, demoMode]);
 
   if (loading) {
     return (
@@ -78,6 +103,31 @@ function App() {
     return <Login onDemo={enterDemo} />;
   }
 
+  if (!demoMode && authError) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
+        <p className="max-w-md text-destructive">{authError}</p>
+        <p className="text-sm text-muted-foreground">Signed in as {session?.user.email}</p>
+        <button
+          className="rounded-md border px-3 py-2 text-sm"
+          onClick={() => void signOut().then(() => setSession(null))}
+        >
+          Sign out
+        </button>
+      </div>
+    );
+  }
+
+  if (!demoMode && !me) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-muted-foreground">Checking your account…</p>
+      </div>
+    );
+  }
+
+  const isAdmin = demoMode || me?.role === "admin";
+
   return (
     <BrowserRouter>
       <DashboardButton />
@@ -88,23 +138,23 @@ function App() {
             <Dashboard
               email={demoMode ? "demo@example.test" : session!.user.email ?? ""}
               demoMode={demoMode}
+              isAdmin={isAdmin}
               onSignOut={demoMode ? exitDemo : () => setSession(null)}
             />
           }
         />
-        <Route path="/admin" element={<Admin />} />
+        <Route path="/admin" element={<Admin isAdmin={isAdmin} />} />
         <Route path="/submit-customer" element={<SubmitCustomer />} />
         <Route path="/customers/:id/edit" element={<SubmitCustomer />} />
         <Route path="/customers" element={<CustomerDirectory />} />
         <Route path="/shipments" element={<ShipmentHistory />} />
-        <Route path="/batches/new" element={<BatchGate />} />
         <Route path="/batches/new/domestic" element={<DomesticBatchBuilder />} />
         <Route path="/batches/new/export" element={<ExportBatchBuilder />} />
         <Route path="/batches/:id/ocr" element={<OcrPage />} />
         <Route path="/batches/:id/stickers" element={<StickersPlaceholder />} />
         <Route path="/export-documents/new" element={<ExportDocumentBuilder />} />
         <Route path="/export-documents/:id/coa" element={<CoaDocumentPage />} />
-        <Route path="/export-documents/:id" element={<ExportDocumentPreview />} />
+        <Route path="/export-documents/:id" element={<ExportDocumentPreview isAdmin={isAdmin} />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

@@ -5,7 +5,7 @@ export default function ExportBatchBuilder() {
     <BatchBuilder
       type="export"
       title="New Export Batch"
-      subtitle="Stickers will be grouped into an invoice later"
+      subtitle="Stickers for this shipment. The shipper is fixed by the packing list."
     />
   );
 }
