@@ -13,7 +13,10 @@ export default function CustomerDirectory() {
   async function editCustomer(customer: Customer) {
     const materialName = window.prompt("Material name for export documents:", customer.material_name ?? "");
     if (materialName === null) return;
-    const updated = await api.updateCustomer(customer.id, { material_name: materialName || null });
+    const customerCode = window.prompt("Customer code (2 letters, e.g. AR):", customer.customer_code ?? "");
+    if (customerCode === null) return;
+    const code = customerCode.trim().toUpperCase().slice(0, 2) || null;
+    const updated = await api.updateCustomer(customer.id, { material_name: materialName || null, customer_code: code });
     setCustomers((items) => items.map((item) => item.id === updated.id ? updated : item));
   }
 
@@ -23,10 +26,11 @@ export default function CustomerDirectory() {
       <p className="mt-1 text-sm text-muted-foreground">Approved customers and their usual export details.</p>
       <div className="mt-6 overflow-x-auto rounded-md border">
         <Table>
-          <TableHeader><TableRow><TableHead>Customer</TableHead><TableHead>Consignee</TableHead><TableHead>Port</TableHead><TableHead>Payment terms</TableHead><TableHead>COA specifications</TableHead><TableHead /></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Customer</TableHead><TableHead>Code</TableHead><TableHead>Consignee</TableHead><TableHead>Port</TableHead><TableHead>Payment terms</TableHead><TableHead>COA specifications</TableHead><TableHead /></TableRow></TableHeader>
           <TableBody>{customers.map((customer) => (
             <TableRow key={customer.id}>
               <TableCell className="font-medium">{customer.name}</TableCell>
+              <TableCell className="font-mono">{customer.customer_code ?? "—"}</TableCell>
               <TableCell>{customer.consignee_l1 ?? "—"}</TableCell>
               <TableCell>{customer.port_of_discharge ?? "—"}</TableCell>
               <TableCell>{customer.payment_terms ?? "—"}</TableCell>
