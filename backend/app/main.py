@@ -17,7 +17,7 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-_ALEMBIC_INI = Path(__file__).resolve().parent.parent.parent / "alembic.ini"
+_ALEMBIC_INI = Path(__file__).resolve().parent.parent / "alembic.ini"
 
 
 def _run_migrations() -> None:
