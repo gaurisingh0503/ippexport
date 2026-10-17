@@ -205,16 +205,7 @@ def _populate_invoice_packing(workbook: Workbook, document: ExportDocument) -> N
     for container_index, batch in enumerate(batches, start=1):
         if not batch.container_no:
             raise ValueError("Every grouped batch needs a container number")
-        # Group bundles by batch_no (production run/lot); each unique lot = one container slot
-        seen: dict[str, list] = {}
-        for bundle in batch.bundles:
-            key = bundle.batch_no or ""
-            seen.setdefault(key, []).append(bundle)
-        if len(seen) <= 1:
-            container_groups.append((container_index, batch.container_no, list(batch.bundles)))
-        else:
-            for lot_bundles in seen.values():
-                container_groups.append((container_index, batch.container_no, lot_bundles))
+        container_groups.append((container_index, batch.container_no, batch.bundles))
 
     container_sheets = [container_12, container_34]
     required_sheets = max(1, (len(container_groups) + 1) // 2)
