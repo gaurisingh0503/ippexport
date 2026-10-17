@@ -1,3 +1,7 @@
+from contextlib import asynccontextmanager
+
+from alembic import command
+from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,7 +13,19 @@ from app.api.materials import router as materials_router
 from app.api.shippers import router as shippers_router
 from app.config import settings
 
-app = FastAPI(title="IPP Shipments API")
+
+def _run_migrations() -> None:
+    alembic_cfg = Config("alembic.ini")
+    command.upgrade(alembic_cfg, "head")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    _run_migrations()
+    yield
+
+
+app = FastAPI(title="IPP Shipments API", lifespan=lifespan)
 
 cors_kwargs: dict = {
     "allow_credentials": True,
