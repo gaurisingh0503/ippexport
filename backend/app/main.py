@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -30,7 +31,8 @@ def _run_migrations() -> None:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        _run_migrations()
+        # Run in a thread so asyncio.run() inside env.py gets a fresh event loop
+        await asyncio.to_thread(_run_migrations)
     except Exception:
         logger.exception("Migration failed — server will start but DB may be out of date")
     yield
