@@ -1,7 +1,10 @@
 import io
 import re
+from collections import defaultdict
 from collections.abc import Iterable
 from copy import copy
+
+from openpyxl.utils.cell import coordinate_from_string
 
 from openpyxl import load_workbook
 from openpyxl.drawing.image import Image
@@ -167,6 +170,47 @@ def _write_bundle(slot: tuple[Worksheet, dict[str, str]], bundle: Bundle) -> Non
             worksheet[target].alignment = alignment
 
 
+def _slot_material_row(targets: dict[str, str]) -> int:
+    _, row = coordinate_from_string(targets["material"])
+    return row
+
+
+def _trim_unused_slots(
+    workbook: Workbook,
+    slots: list[tuple[Worksheet, dict[str, str]]],
+    used_count: int,
+) -> None:
+    """Delete worksheet rows whose sticker slots are all unused."""
+    if used_count >= len(slots):
+        return
+
+    # Group slot indices by (worksheet, material_row)
+    ws_row_slots: dict[tuple[int, int], list[int]] = defaultdict(list)
+    for idx, (ws, targets) in enumerate(slots):
+        ws_row_slots[(id(ws), _slot_material_row(targets))].append(idx)
+
+    # Per worksheet: find material rows where every slot is unused, then delete bottom-up
+    ws_map: dict[int, Worksheet] = {id(ws): ws for ws, _ in slots}
+    ws_all_rows: dict[int, list[int]] = defaultdict(list)
+    for (ws_id, mat_row) in ws_row_slots:
+        ws_all_rows[ws_id].append(mat_row)
+
+    for ws_id, mat_rows in ws_all_rows.items():
+        ws = ws_map[ws_id]
+        sorted_mat_rows = sorted(mat_rows)
+        rows_to_delete = sorted(
+            (r for r in sorted_mat_rows if all(i >= used_count for i in ws_row_slots[(ws_id, r)])),
+            reverse=True,
+        )
+        for del_row in rows_to_delete:
+            pos = sorted_mat_rows.index(del_row)
+            if pos + 1 < len(sorted_mat_rows):
+                row_count = sorted_mat_rows[pos + 1] - del_row
+            else:
+                row_count = ws.max_row - del_row + 1
+            ws.delete_rows(del_row, row_count)
+
+
 async def generate_stickers(batch: StickerBatch, bundles: Iterable[Bundle]) -> bytes:
     bundle_list = list(bundles)
     if not bundle_list:
@@ -182,6 +226,8 @@ async def generate_stickers(batch: StickerBatch, bundles: Iterable[Bundle]) -> b
 
     for slot, bundle in zip(slots[: len(bundle_list)], bundle_list, strict=True):
         _write_bundle(slot, bundle)
+
+    _trim_unused_slots(workbook, slots, len(bundle_list))
 
     output = io.BytesIO()
     workbook.save(output)
