@@ -1,24 +1,16 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api, type Customer } from "@/lib/api";
 
 export default function CustomerDirectory() {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     api.getCustomers().then(setCustomers);
   }, []);
-
-  async function editCustomer(customer: Customer) {
-    const materialName = window.prompt("Material name for export documents:", customer.material_name ?? "");
-    if (materialName === null) return;
-    const customerCode = window.prompt("Customer code (2 letters, e.g. AR):", customer.customer_code ?? "");
-    if (customerCode === null) return;
-    const code = customerCode.trim().toUpperCase().slice(0, 2) || null;
-    const updated = await api.updateCustomer(customer.id, { material_name: materialName || null, customer_code: code });
-    setCustomers((items) => items.map((item) => item.id === updated.id ? updated : item));
-  }
 
   return (
     <div className="mx-auto min-h-screen max-w-6xl p-6">
@@ -35,7 +27,7 @@ export default function CustomerDirectory() {
               <TableCell>{customer.port_of_discharge ?? "—"}</TableCell>
               <TableCell>{customer.payment_terms ?? "—"}</TableCell>
               <TableCell>{customer.coa_specifications ? "Saved" : "Default template"}</TableCell>
-              <TableCell><button className="text-sm underline" onClick={() => void editCustomer(customer)}>Edit</button></TableCell>
+              <TableCell><button className="text-sm underline" onClick={() => navigate(`/customers/${customer.id}/edit`)}>Edit</button></TableCell>
             </TableRow>
           ))}</TableBody>
         </Table>

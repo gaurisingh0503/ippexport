@@ -1,4 +1,4 @@
-import type { CustomerInput } from "./api";
+import type { Customer, CustomerInput } from "./api";
 
 export type PartyFields = {
   name: string;
@@ -97,4 +97,29 @@ export function consigneeDisplayName(customer: {
   consignee_l1: string | null;
 }): string {
   return customer.consignee_l1 ?? "—";
+}
+
+export function customerToForm(customer: Customer): CustomerFormState {
+  const notifyParties: PartyFields[] = [];
+  for (const keys of NOTIFY_PARTY_KEYS) {
+    const [k1, k2, k3] = keys;
+    const name = customer[k1] ?? "";
+    const address = customer[k2] ?? "";
+    const contact = customer[k3] ?? "";
+    if (name || address || contact) notifyParties.push({ name, address, contact });
+  }
+  return {
+    name: customer.name,
+    customer_code: customer.customer_code ?? "",
+    port_of_discharge: customer.port_of_discharge ?? "",
+    payment_terms: customer.payment_terms ?? "",
+    material_name: customer.material_name ?? "",
+    consignee: {
+      name: customer.consignee_l1 ?? "",
+      address: customer.consignee_l2 ?? "",
+      contact: customer.consignee_l3 ?? "",
+    },
+    notifyParties: notifyParties.length > 0 ? notifyParties : [{ ...EMPTY_PARTY }],
+    coa_specifications: customer.coa_specifications ?? { ...DEFAULT_COA_SPECIFICATIONS },
+  };
 }

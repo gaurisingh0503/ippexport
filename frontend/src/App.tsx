@@ -94,6 +94,7 @@ function App() {
         />
         <Route path="/admin" element={<Admin />} />
         <Route path="/submit-customer" element={<SubmitCustomer />} />
+        <Route path="/customers/:id/edit" element={<SubmitCustomer />} />
         <Route path="/customers" element={<CustomerDirectory />} />
         <Route path="/shipments" element={<ShipmentHistory />} />
         <Route path="/batches/new" element={<BatchGate />} />

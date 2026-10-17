@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import {
   EMPTY_FORM,
   EMPTY_PARTY,
   formToCustomerInput,
+  customerToForm,
   MAX_NOTIFY_PARTIES,
   DEFAULT_COA_SPECIFICATIONS,
   type CustomerFormState,
@@ -75,10 +77,21 @@ function PartySection({ title, party, onChange, onRemove, defaultOpen = false }:
 }
 
 export default function SubmitCustomer() {
+  const { id } = useParams<{ id?: string }>();
+  const isEdit = Boolean(id);
+  const navigate = useNavigate();
   const [form, setForm] = useState<CustomerFormState>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    api.getCustomers().then((customers) => {
+      const customer = customers.find((c) => c.id === id);
+      if (customer) setForm(customerToForm(customer));
+    });
+  }, [id]);
 
   function updateConsignee(consignee: PartyFields) {
     setForm((prev) => ({ ...prev, consignee }));
@@ -114,9 +127,14 @@ export default function SubmitCustomer() {
     setSuccess(false);
 
     try {
-      await api.createCustomer(formToCustomerInput(form));
-      setSuccess(true);
-      setForm(EMPTY_FORM);
+      if (isEdit && id) {
+        await api.updateCustomer(id, formToCustomerInput(form));
+        navigate("/customers");
+      } else {
+        await api.createCustomer(formToCustomerInput(form));
+        setSuccess(true);
+        setForm(EMPTY_FORM);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Submission failed");
     } finally {
@@ -126,7 +144,7 @@ export default function SubmitCustomer() {
 
   return (
     <div className="mx-auto min-h-screen max-w-2xl space-y-6 p-6">
-      <h1 className="text-2xl font-semibold">Add New Customer</h1>
+      <h1 className="text-2xl font-semibold">{isEdit ? "Edit Customer" : "Add New Customer"}</h1>
 
       {success && (
         <Alert>
@@ -249,7 +267,7 @@ export default function SubmitCustomer() {
         {error && <p className="text-sm text-destructive">{error}</p>}
 
         <Button type="submit" disabled={submitting}>
-          {submitting ? "Saving…" : "Add customer for approval"}
+          {submitting ? "Saving…" : isEdit ? "Save changes" : "Add customer for approval"}
         </Button>
       </form>
     </div>
