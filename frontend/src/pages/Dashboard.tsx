@@ -11,7 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { api, type ExportDocument, type StickerBatch } from "@/lib/api";
+import { api, type StickerBatch } from "@/lib/api";
 import { signOut } from "@/lib/supabase";
 
 type DashboardProps = {
@@ -31,16 +31,7 @@ function formatDate(iso: string): string {
   });
 }
 
-function shipmentStage(document: ExportDocument): string {
-  if (document.status === "approved") return "Approved";
-  if (document.status === "pending_approval") return "Pending approval";
-  if (document.status === "rejected") return "Rejected — fix and resend";
-  if (document.batches.length === 0) return "Add stickers";
-  if (!document.net_weight_cleared) return "Net weight mismatch";
-  return "Invoice & COA";
-}
-
-function domesticNextStep(batch: StickerBatch): { label: string; path: string } {
+function nextStep(batch: StickerBatch): { label: string; path: string } {
   if (batch.status === "draft") return { label: "Review bundle details", path: `/batches/${batch.id}/ocr` };
   return { label: "Open stickers", path: `/batches/${batch.id}/stickers` };
 }
@@ -53,15 +44,52 @@ function readTab(): string {
   }
 }
 
+function BatchTable({ batches, onOpen }: { batches: StickerBatch[]; onOpen: (path: string) => void }) {
+  if (batches.length === 0) return <p className="text-sm text-muted-foreground">No batches yet.</p>;
+  return (
+    <div className="overflow-x-auto rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Shipper</TableHead>
+            <TableHead>Material</TableHead>
+            <TableHead>Container</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Created</TableHead>
+            <TableHead className="text-right">Next step</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {batches.map((batch) => {
+            const action = nextStep(batch);
+            return (
+              <TableRow key={batch.id}>
+                <TableCell>{batch.shipper.name}</TableCell>
+                <TableCell>{batch.material.material_name}</TableCell>
+                <TableCell>{batch.container_no ?? "—"}</TableCell>
+                <TableCell className="capitalize">{batch.status.replace(/_/g, " ")}</TableCell>
+                <TableCell>{formatDate(batch.created_at)}</TableCell>
+                <TableCell className="text-right">
+                  <Button size="sm" variant="outline" onClick={() => onOpen(action.path)}>
+                    {action.label}
+                  </Button>
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
 export default function Dashboard({ email, onSignOut, demoMode = false, isAdmin }: DashboardProps) {
   const navigate = useNavigate();
   const [tab, setTab] = useState(readTab);
-  const [domesticBatches, setDomesticBatches] = useState<StickerBatch[]>([]);
-  const [documents, setDocuments] = useState<ExportDocument[]>([]);
+  const [batches, setBatches] = useState<StickerBatch[]>([]);
 
   useEffect(() => {
-    api.getExportDocuments().then(setDocuments).catch(() => setDocuments([]));
-    api.getBatches({ type: "domestic" }).then(setDomesticBatches).catch(() => setDomesticBatches([]));
+    api.getBatches().then(setBatches).catch(() => setBatches([]));
   }, []);
 
   function changeTab(next: string) {
@@ -86,7 +114,6 @@ export default function Dashboard({ email, onSignOut, demoMode = false, isAdmin 
         <p className="text-xs uppercase tracking-wide text-muted-foreground">{isAdmin ? "Admin" : "User"}</p>
         <div className="flex flex-col gap-2">
           <Button asChild variant="secondary"><Link to="/customers">Customers</Link></Button>
-          <Button asChild variant="secondary"><Link to="/shipments">Shipment History</Link></Button>
           <Button asChild variant="secondary"><Link to="/submit-customer">Add New Customer</Link></Button>
           {isAdmin && <Button asChild variant="secondary"><Link to="/admin">Admin</Link></Button>}
         </div>
@@ -105,108 +132,17 @@ export default function Dashboard({ email, onSignOut, demoMode = false, isAdmin 
             <TabsTrigger value="domestic">Domestic</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="export" className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-medium">Export shipments</h3>
-                <p className="text-sm text-muted-foreground">
-                  Packing list → stickers → invoice → COA
-                </p>
+          {(["export", "domestic"] as const).map((type) => (
+            <TabsContent key={type} value={type} className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h3 className="text-lg font-medium">{type === "export" ? "Export" : "Domestic"} sticker batches</h3>
+                <Button asChild>
+                  <Link to={`/batches/new/${type}`}>New {type} batch</Link>
+                </Button>
               </div>
-              <Button asChild><Link to="/export-documents/new">New export shipment</Link></Button>
-            </div>
-            {documents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No export shipments yet.</p>
-            ) : (
-              <div className="overflow-x-auto rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Invoice</TableHead>
-                      <TableHead>Consignee</TableHead>
-                      <TableHead>Shipper</TableHead>
-                      <TableHead className="text-right">Net weight (kg)</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead className="text-right">Stage</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {documents.map((document) => (
-                      <TableRow
-                        key={document.id}
-                        className="cursor-pointer"
-                        onClick={() => navigate(`/export-documents/${document.id}`)}
-                      >
-                        <TableCell className="font-mono text-xs">{document.invoice_no}</TableCell>
-                        <TableCell>{document.consignee.name}</TableCell>
-                        <TableCell>{document.shipper.name}</TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {document.stickers_net_weight.toLocaleString()} / {document.packing_list_net_weight?.toLocaleString() ?? "—"}
-                        </TableCell>
-                        <TableCell>{formatDate(document.created_at)}</TableCell>
-                        <TableCell className="text-right">
-                          <span
-                            className={
-                              !document.net_weight_cleared && document.batches.length > 0
-                                ? "rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-900"
-                                : "rounded-full bg-muted px-2 py-0.5 text-xs"
-                            }
-                          >
-                            {shipmentStage(document)}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="domestic" className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="text-lg font-medium">Domestic batches</h3>
-                <p className="text-sm text-muted-foreground">Stickers only</p>
-              </div>
-              <Button asChild><Link to="/batches/new/domestic">New domestic batch</Link></Button>
-            </div>
-            {domesticBatches.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No domestic batches yet.</p>
-            ) : (
-              <div className="overflow-x-auto rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Shipper</TableHead>
-                      <TableHead>Material</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead className="text-right">Next step</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {domesticBatches.map((batch) => {
-                      const action = domesticNextStep(batch);
-                      return (
-                        <TableRow key={batch.id}>
-                          <TableCell>{batch.shipper.name}</TableCell>
-                          <TableCell>{batch.material.material_name}</TableCell>
-                          <TableCell className="capitalize">{batch.status.replace(/_/g, " ")}</TableCell>
-                          <TableCell>{formatDate(batch.created_at)}</TableCell>
-                          <TableCell className="text-right">
-                            <Button size="sm" variant="outline" onClick={() => navigate(action.path)}>
-                              {action.label}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </TabsContent>
+              <BatchTable batches={batches.filter((batch) => batch.type === type)} onOpen={navigate} />
+            </TabsContent>
+          ))}
         </Tabs>
       </main>
       <Button className="fixed right-4 top-4" variant="outline" onClick={handleSignOut}>

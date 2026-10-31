@@ -176,18 +176,17 @@ async def download_stickers(
     batch_id: uuid.UUID,
     _user: Annotated[dict, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
+    bundle_ids: Annotated[list[uuid.UUID] | None, Query()] = None,
 ) -> StreamingResponse:
     batch = await _get_batch_or_404(db, batch_id)
+    query = select(Bundle).where(Bundle.sticker_batch_id == batch_id)
+    if bundle_ids:
+        query = query.where(Bundle.id.in_(bundle_ids))
     bundles = list(
-        (
-            await db.scalars(
-                select(Bundle)
-                .where(Bundle.sticker_batch_id == batch_id)
-                .options(*_BUNDLE_LOAD)
-                .order_by(Bundle.created_at.asc())
-            )
-        ).all()
+        (await db.scalars(query.options(*_BUNDLE_LOAD).order_by(Bundle.created_at.asc()))).all()
     )
+    if bundle_ids and len(bundles) != len(set(bundle_ids)):
+        raise HTTPException(status_code=404, detail="Some selected bundles are not in this batch")
     required_fields = (
         "material_id",
         "batch_no",

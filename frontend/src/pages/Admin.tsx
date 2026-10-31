@@ -105,7 +105,6 @@ export default function Admin({ isAdmin }: { isAdmin: boolean }) {
       <Tabs defaultValue="customers" className="grid gap-6 md:grid-cols-[180px_1fr]">
         <TabsList className="h-fit flex-col items-stretch">
           <TabsTrigger value="customers">Customer approvals</TabsTrigger>
-          <TabsTrigger value="documents">Document approvals</TabsTrigger>
         </TabsList>
 
         <TabsContent value="customers" className="mt-0 space-y-6">

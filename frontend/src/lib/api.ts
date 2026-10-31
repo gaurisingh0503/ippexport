@@ -207,7 +207,12 @@ const productionApi = {
     http.patch<Bundle>(`/batches/${batchId}/bundles/${bundleId}`, data),
   deleteBundle: (batchId: string, bundleId: string) =>
     http.delete<void>(`/batches/${batchId}/bundles/${bundleId}`),
-  downloadStickers: (batchId: string) => http.download(`/batches/${batchId}/stickers`),
+  downloadStickers: (batchId: string, bundleIds?: string[]) => {
+    const query = bundleIds?.length
+      ? `?${bundleIds.map((id) => `bundle_ids=${encodeURIComponent(id)}`).join("&")}`
+      : "";
+    return http.download(`/batches/${batchId}/stickers${query}`);
+  },
   createExportDocument: (data: ExportDocumentCreateInput) =>
     http.post<ExportDocument>("/export-documents", data),
   getExportDocuments: (status?: string) =>

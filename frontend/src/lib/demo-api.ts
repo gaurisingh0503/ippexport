@@ -246,7 +246,7 @@ export const demoApi = {
   updateBundle: async (batchId: string, bundleId: string, _data: BundleUpdateInput) =>
     (bundles[batchId] ?? []).find((bundle) => bundle.id === bundleId) ?? blockWrite(),
   deleteBundle: async (_batchId: string, _bundleId: string) => undefined,
-  downloadStickers: async (_batchId: string) => sampleWorkbook("demo-stickers.xls"),
+  downloadStickers: async (_batchId: string, _bundleIds?: string[]) => sampleWorkbook("demo-stickers.xls"),
   createExportDocument: async (_data: ExportDocumentCreateInput) => getDocument("demo-export-document"),
   getExportDocuments: async (status?: string) => documents.filter((document) => !status || document.status === status),
   getExportDocument: async (id: string) => getDocument(id),

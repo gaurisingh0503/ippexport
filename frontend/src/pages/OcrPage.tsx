@@ -31,6 +31,8 @@ export default function OcrPage() {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [containerNo, setContainerNo] = useState("");
   const [savingContainer, setSavingContainer] = useState(false);
+  const [existingIds, setExistingIds] = useState<Set<string>>(new Set());
+  const [addingMore, setAddingMore] = useState(false);
 
   useEffect(() => {
     if (!batchId) return;
@@ -41,6 +43,8 @@ export default function OcrPage() {
         setContainerNo(batchData.container_no ?? "");
         setMaterials(materialList);
         setBundles(bundleList.map((b) => ({ ...b, saved: initialSaved(b) })));
+        setExistingIds(new Set(bundleList.map((b) => b.id)));
+        setAddingMore(batchData.status !== "draft");
       })
       .catch(() => setPageError("Failed to load batch"))
       .finally(() => setLoading(false));
@@ -132,7 +136,7 @@ export default function OcrPage() {
   return (
     <div className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 p-6 pb-32">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Review Bundle Details</h1>
+        <h1 className="text-2xl font-semibold">{addingMore ? "Add More Stickers" : "Review Bundle Details"}</h1>
         <Button asChild variant="outline">
           <Link to="/">Dashboard</Link>
         </Button>
@@ -163,6 +167,13 @@ export default function OcrPage() {
           </span>
         )}
       </div>
+
+      {addingMore && (
+        <p className="rounded-md border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+          Stickers were already made for this batch. Upload photos of the extra bundles below — only the new
+          bundles will be selected for printing on the next page.
+        </p>
+      )}
 
       <BundleUploadZone onUpload={handleUpload} loading={uploading} />
 
@@ -230,10 +241,15 @@ export default function OcrPage() {
             onClick={async () => {
               if (!batchId) return;
               await api.updateBatch(batchId, { status: "ready" });
-              navigate(`/batches/${batchId}/stickers`);
+              const newBundleIds = addingMore
+                ? bundles.filter((b) => !existingIds.has(b.id)).map((b) => b.id)
+                : [];
+              navigate(`/batches/${batchId}/stickers`, {
+                state: newBundleIds.length ? { newBundleIds } : undefined,
+              });
             }}
           >
-            Proceed to Stickers
+            {addingMore ? "Done — back to stickers" : "Proceed to Stickers"}
           </Button>
         </div>
       </div>
