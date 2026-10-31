@@ -5,7 +5,7 @@ export default function ExportBatchBuilder() {
     <BatchBuilder
       type="export"
       title="New Export Batch"
-      subtitle="Stickers for this shipment. The shipper is fixed by the packing list."
+      subtitle="Drag in the shipper and pick the material to start a batch of export stickers."
     />
   );
 }
