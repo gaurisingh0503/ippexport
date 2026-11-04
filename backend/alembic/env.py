@@ -3,6 +3,7 @@ from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import pool
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.config import settings
@@ -16,7 +17,9 @@ from app.models.shipper import Shipper  # noqa: F401
 from app.models.sticker_batch import StickerBatch  # noqa: F401
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url_direct.replace("%", "%%"))
+# Migrations run on asyncpg, the only Postgres driver installed, whatever scheme the URL uses.
+_url = make_url(settings.database_url_direct).set(drivername="postgresql+asyncpg")
+config.set_main_option("sqlalchemy.url", _url.render_as_string(hide_password=False).replace("%", "%%"))
 
 if config.config_file_name is not None:
     # The app runs migrations in-process at startup; the default (True) would silence
