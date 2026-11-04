@@ -19,7 +19,7 @@ from app.models.sticker_batch import StickerBatch
 from app.schemas.bundle import BundleOut, BundleUpdate
 from app.schemas.sticker_batch import StickerBatchCreate, StickerBatchOut, StickerBatchUpdate
 from app.services.image_type import prepare_bundle_image
-from app.services.excel import generate_stickers
+from app.services.excel import STICKER_FORMAT_GS_YUASA, generate_stickers
 from app.services.ocr import extract_bundle_data
 from app.services.storage import delete_bundle_image, signed_image_url, upload_bundle_image
 
@@ -63,6 +63,10 @@ async def _bundle_to_out(bundle: Bundle) -> BundleOut:
     return out
 
 
+def _names_gs_yuasa(*texts: str | None) -> bool:
+    return any(text and "yuasa" in text.lower() for text in texts)
+
+
 async def _resolve_material_id(
     db: AsyncSession, batch: StickerBatch, ocr_material_name: str | None
 ) -> uuid.UUID:
@@ -82,18 +86,20 @@ def _normalize_ocr_result(raw: dict) -> dict:
         return text or None
 
     def as_int(value: object) -> int | None:
-        if value is None or value == "":
-            return None
-        return int(float(value))
+        number = as_float(value)
+        return None if number is None else int(number)
 
     def as_float(value: object) -> float | None:
         if value is None or value == "":
             return None
+        if isinstance(value, str):
+            match = re.search(r"\d[\d,]*(?:\.\d+)?", value)
+            return float(match.group().replace(",", "")) if match else None
         return float(value)
 
     def as_lot_no(value: object) -> str | None:
         lot_no = as_str(value)
-        if lot_no and re.fullmatch(r"R\d+-\d+", lot_no, flags=re.IGNORECASE):
+        if lot_no and re.fullmatch(r"(?:R\d+-\d+|\d{1,6})", lot_no, flags=re.IGNORECASE):
             return lot_no.upper()
         return None
 
@@ -119,6 +125,8 @@ def _normalize_ocr_result(raw: dict) -> dict:
 
     return {
         "container_no": as_str(raw.get("container_no")),
+        "customer_name": as_str(raw.get("customer_name")),
+        "material_name": material_name,
         "bundles": bundles or [
             {
                 "material_name": material_name,
@@ -255,6 +263,9 @@ async def create_bundle(
     except Exception as exc:
         logger.warning("OCR failed for batch %s file %s: %s", batch_id, file.filename, exc)
         ocr_result = _normalize_ocr_result({})
+
+    if _names_gs_yuasa(ocr_result["customer_name"], ocr_result["material_name"]):
+        batch.sticker_format = STICKER_FORMAT_GS_YUASA
 
     detected_container_no = ocr_result["container_no"]
     if detected_container_no and batch.container_no is None:

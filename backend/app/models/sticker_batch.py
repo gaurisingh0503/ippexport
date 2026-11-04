@@ -18,6 +18,7 @@ class StickerBatch(Base):
     container_no: Mapped[str | None] = mapped_column(String(255))
     sticker_file_url: Mapped[str | None] = mapped_column(String(512))
     status: Mapped[str] = mapped_column(String(30), nullable=False, server_default="draft")
+    sticker_format: Mapped[str] = mapped_column(String(30), nullable=False, server_default="standard")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     shipper: Mapped["Shipper"] = relationship()

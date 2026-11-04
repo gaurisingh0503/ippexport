@@ -80,6 +80,7 @@ export type StickerBatch = {
   container_no: string | null;
   sticker_file_url: string | null;
   status: string;
+  sticker_format: string;
   created_at: string;
   shipper: StickerBatchShipper;
   material: StickerBatchMaterial;
@@ -96,6 +97,7 @@ export type StickerBatchUpdateInput = Partial<
     container_no: string | null;
     sticker_file_url: string | null;
     status: string;
+    sticker_format: string;
   }
 >;
 

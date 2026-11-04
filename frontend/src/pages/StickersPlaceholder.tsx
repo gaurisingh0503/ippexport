@@ -47,6 +47,16 @@ export default function StickersPlaceholder() {
     [bundles],
   );
 
+  async function handleFormatChange(stickerFormat: string) {
+    if (!batchId) return;
+    setError(null);
+    try {
+      setBatch(await api.updateBatch(batchId, { sticker_format: stickerFormat }));
+    } catch (err) {
+      setError(apiErrorMessage(err, "Failed to change sticker format"));
+    }
+  }
+
   async function handleDownload() {
     if (!batchId || !ready || selectedIds.size === 0) return;
     setDownloading(true);
@@ -150,6 +160,18 @@ export default function StickersPlaceholder() {
         </span>
         <span>•</span>
         <span>Default material: {batch.material.sticker_display_name}</span>
+        <span>•</span>
+        <label className="flex items-center gap-2">
+          Sticker format:
+          <select
+            className="rounded-md border border-input bg-background px-2 py-1 text-sm text-foreground"
+            value={batch.sticker_format}
+            onChange={(event) => void handleFormatChange(event.target.value)}
+          >
+            <option value="standard">Standard</option>
+            <option value="gs_yuasa">GS Yuasa (packing item weight)</option>
+          </select>
+        </label>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -199,6 +221,12 @@ export default function StickersPlaceholder() {
                   {bundle.gross_weight ?? "—"} / {bundle.net_weight ?? "—"} kg
                 </dd>
               </div>
+              {batch.sticker_format === "gs_yuasa" && bundle.gross_weight != null && bundle.net_weight != null && (
+                <div>
+                  <dt className="text-muted-foreground">Packing item weight</dt>
+                  <dd>{(bundle.gross_weight - bundle.net_weight).toFixed(2)} kg</dd>
+                </div>
+              )}
             </dl>
           </article>
         ))}

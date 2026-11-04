@@ -11,6 +11,7 @@ _EXTRACTION_PROMPT = """This image is a bundle register. Extract it and return O
 {
   "container_no": null,
   "material_name": null,
+  "customer_name": null,
   "bundles": [
     {
       "batch_no": null,
@@ -23,12 +24,15 @@ _EXTRACTION_PROMPT = """This image is a bundle register. Extract it and return O
 }
 Container No. and Material Name are shared page-level values. Copy container_no and batch_no character-for-character, including hyphens. If either is uncertain, return null instead of guessing.
 material_name must contain only the product name, never a seal number or container text. Do not infer a metal grade from appearance; return null if the material name is not clearly readable.
+customer_name is the customer or company written in the page heading after the material (for example "GS Yuasa"); return null if none is written.
 Each handwritten table row is one bundle and must create exactly one object in bundles — one row equals one sticker.
 Do not include the serial-number column or totals row as a bundle.
 The handwritten table column named "LotNo" or "Lot No." is the only source for batch_no because the sticker template labels this field "Batch No.".
-Copy its value exactly, including hyphens: for example, a table value R2-64 must return batch_no "R2-64". Never use company names, material names, or unrelated handwritten words as batch_no.
-Carry shared values or ditto marks down to every applicable bundle row. For example, if "30 Ingots" is written once and the rows below use ditto marks, set ingot_count to 30 on every relevant row.
-If the register has only one "Weight" column, use that same value for both gross_weight and net_weight.
+Copy its value exactly as a string, including hyphens and leading zeros: a table value R2-64 must return batch_no "R2-64" and a table value 073 must return batch_no "073". Never use company names, material names, or unrelated handwritten words as batch_no.
+ingot_count comes only from the column headed "No of Ingots" (or similar). Read the number actually written on this page; the count differs between registers, so never assume a typical value. Do not confuse it with the "No of Strap" column or the serial number.
+Carry shared values or ditto marks down to every applicable bundle row: when a value is written once and the rows below use ditto marks, repeat that written value on every relevant row. If a new value is written part-way down a column, use it from that row onward.
+gross_weight comes from the column headed "Weight" or "Gross Weight". net_weight comes from the column headed "Net Weight"; if the register has only one weight column, use that same value for both gross_weight and net_weight.
+Ignore arrows, running totals and other side notes written beside a value.
 For numeric fields return a number, not a string.
 If a field is not clearly readable return null — never guess.
 Return only the JSON object, no explanation."""

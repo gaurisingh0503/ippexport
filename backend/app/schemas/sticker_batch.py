@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -17,6 +18,7 @@ class StickerBatchUpdate(BaseModel):
     container_no: str | None = None
     sticker_file_url: str | None = None
     status: str | None = None
+    sticker_format: Literal["standard", "gs_yuasa"] | None = None
 
 
 class ShipperNested(BaseModel):
@@ -48,6 +50,7 @@ class StickerBatchOut(BaseModel):
     container_no: str | None
     sticker_file_url: str | None
     status: str
+    sticker_format: str
     created_at: datetime
     shipper: ShipperNested
     material: MaterialNested
