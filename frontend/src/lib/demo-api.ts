@@ -98,6 +98,8 @@ const customers: Customer[] = [
   },
 ];
 
+customers.push({ ...customers[0], id: "demo-customer-gs-yuasa", name: "GS Yuasa", customer_code: null });
+
 const batches: StickerBatch[] = [
   {
     id: "demo-export-batch",
@@ -111,6 +113,7 @@ const batches: StickerBatch[] = [
     created_at: createdAt,
     shipper: shippers[0],
     material: materials[0],
+    customer: null,
   },
   {
     id: "demo-domestic-batch",
@@ -124,6 +127,7 @@ const batches: StickerBatch[] = [
     created_at: "2026-08-09T08:30:00.000Z",
     shipper: shippers[1],
     material: materials[0],
+    customer: null,
   },
   {
     id: "demo-draft-batch",
@@ -137,6 +141,7 @@ const batches: StickerBatch[] = [
     created_at: "2026-08-08T08:30:00.000Z",
     shipper: shippers[0],
     material: materials[0],
+    customer: null,
   },
 ];
 

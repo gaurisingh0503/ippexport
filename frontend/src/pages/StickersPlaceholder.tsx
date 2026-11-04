@@ -159,6 +159,8 @@ export default function StickersPlaceholder() {
           {selectedIds.size} of {bundles.length} sticker{bundles.length === 1 ? "" : "s"} selected
         </span>
         <span>•</span>
+        <span>Customer: {batch.customer?.name ?? "Not set"}</span>
+        <span>•</span>
         <span>Default material: {batch.material.sticker_display_name}</span>
         <span>•</span>
         <label className="flex items-center gap-2">

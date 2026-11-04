@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from app.auth.deps import get_current_user
 from app.db import get_db
 from app.models.bundle import Bundle
+from app.models.customer import Customer
 from app.models.material import Material
 from app.models.shipper import Shipper  # noqa: F401
 from app.models.sticker_batch import StickerBatch
@@ -30,6 +31,7 @@ router = APIRouter(prefix="/batches", tags=["batches"])
 _BATCH_LOAD = (
     selectinload(StickerBatch.shipper),
     selectinload(StickerBatch.material),
+    selectinload(StickerBatch.customer),
 )
 
 _BUNDLE_LOAD = (selectinload(Bundle.material),)
@@ -147,6 +149,13 @@ async def create_batch(
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> StickerBatch:
     batch = StickerBatch(**body.model_dump())
+    if body.customer_id:
+        customer = await db.scalar(
+            select(Customer).where(Customer.id == body.customer_id, Customer.status == "approved")
+        )
+        if not customer:
+            raise HTTPException(status_code=422, detail="Customer not found")
+        batch.sticker_format = customer.sticker_format
     db.add(batch)
     await db.commit()
     return await _get_batch_or_404(db, batch.id)
@@ -264,7 +273,7 @@ async def create_bundle(
         logger.warning("OCR failed for batch %s file %s: %s", batch_id, file.filename, exc)
         ocr_result = _normalize_ocr_result({})
 
-    if _names_gs_yuasa(ocr_result["customer_name"], ocr_result["material_name"]):
+    if batch.customer_id is None and _names_gs_yuasa(ocr_result["customer_name"], ocr_result["material_name"]):
         batch.sticker_format = STICKER_FORMAT_GS_YUASA
 
     detected_container_no = ocr_result["container_no"]

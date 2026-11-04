@@ -9,6 +9,7 @@ class StickerBatchCreate(BaseModel):
     type: str
     shipper_id: uuid.UUID
     material_id: uuid.UUID
+    customer_id: uuid.UUID | None = None
 
 
 class StickerBatchUpdate(BaseModel):
@@ -40,6 +41,13 @@ class MaterialNested(BaseModel):
     goods_description: str | None
 
 
+class CustomerNested(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+
+
 class StickerBatchOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -54,3 +62,4 @@ class StickerBatchOut(BaseModel):
     created_at: datetime
     shipper: ShipperNested
     material: MaterialNested
+    customer: CustomerNested | None

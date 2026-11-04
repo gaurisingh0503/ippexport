@@ -52,6 +52,7 @@ function BatchTable({ batches, onOpen }: { batches: StickerBatch[]; onOpen: (pat
         <TableHeader>
           <TableRow>
             <TableHead>Shipper</TableHead>
+            <TableHead>Customer</TableHead>
             <TableHead>Material</TableHead>
             <TableHead>Container</TableHead>
             <TableHead>Status</TableHead>
@@ -65,6 +66,7 @@ function BatchTable({ batches, onOpen }: { batches: StickerBatch[]; onOpen: (pat
             return (
               <TableRow key={batch.id}>
                 <TableCell>{batch.shipper.name}</TableCell>
+                <TableCell>{batch.customer?.name ?? "—"}</TableCell>
                 <TableCell>{batch.material.material_name}</TableCell>
                 <TableCell>{batch.container_no ?? "—"}</TableCell>
                 <TableCell className="capitalize">{batch.status.replace(/_/g, " ")}</TableCell>

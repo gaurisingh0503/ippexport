@@ -84,12 +84,14 @@ export type StickerBatch = {
   created_at: string;
   shipper: StickerBatchShipper;
   material: StickerBatchMaterial;
+  customer: { id: string; name: string } | null;
 };
 
 export type StickerBatchCreateInput = {
   type: string;
   shipper_id: string;
   material_id: string;
+  customer_id?: string | null;
 };
 
 export type StickerBatchUpdateInput = Partial<

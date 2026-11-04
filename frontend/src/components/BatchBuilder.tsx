@@ -15,9 +15,11 @@ import { BuilderLayout } from "@/components/builder/builder-layout";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { api, type Material, type Shipper } from "@/lib/api";
+import { api, type Customer, type Material, type Shipper } from "@/lib/api";
 import { ApiError } from "@/lib/http";
 import { cn } from "@/lib/utils";
+
+const OTHER_CUSTOMER = "other";
 
 type BatchBuilderProps = {
   type: "domestic" | "export";
@@ -34,6 +36,8 @@ export default function BatchBuilder({ type, title, subtitle }: BatchBuilderProp
   const [materials, setMaterials] = useState<Material[]>([]);
   const [droppedShipper, setDroppedShipper] = useState<Shipper | null>(null);
   const [materialId, setMaterialId] = useState("");
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerChoice, setCustomerChoice] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,14 +45,15 @@ export default function BatchBuilder({ type, title, subtitle }: BatchBuilderProp
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   useEffect(() => {
-    Promise.all([api.getShippers(), api.getMaterials()])
-      .then(([shipperList, materialList]) => {
+    Promise.all([api.getShippers(), api.getMaterials(), api.getCustomers()])
+      .then(([shipperList, materialList, customerList]) => {
+        setCustomers(customerList);
         setShippers(shipperList);
         setMaterials(materialList);
         const locked = shipmentShipperId && shipperList.find((shipper) => shipper.id === shipmentShipperId);
         if (locked) setDroppedShipper(locked);
       })
-      .catch(() => setError("Failed to load shippers and materials"))
+      .catch(() => setError("Failed to load shippers, materials and customers"))
       .finally(() => setLoading(false));
   }, [shipmentShipperId]);
 
@@ -65,7 +70,7 @@ export default function BatchBuilder({ type, title, subtitle }: BatchBuilderProp
   }
 
   async function handleConfirm() {
-    if (!droppedShipper || !materialId) return;
+    if (!droppedShipper || !materialId || !customerChoice) return;
     setSubmitting(true);
     setError(null);
 
@@ -74,6 +79,7 @@ export default function BatchBuilder({ type, title, subtitle }: BatchBuilderProp
         type,
         shipper_id: droppedShipper.id,
         material_id: materialId,
+        customer_id: customerChoice === OTHER_CUSTOMER ? null : customerChoice,
       });
       if (shipmentId) await api.attachBatch(shipmentId, batch.id);
       navigate(`/batches/${batch.id}/ocr`);
@@ -141,6 +147,27 @@ export default function BatchBuilder({ type, title, subtitle }: BatchBuilderProp
             />
 
             <div className="space-y-2">
+              <Label htmlFor="customer">Customer</Label>
+              <select
+                id="customer"
+                value={customerChoice}
+                onChange={(e) => setCustomerChoice(e.target.value)}
+                className={cn(
+                  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm",
+                  "ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                )}
+              >
+                <option value="">Select a customer</option>
+                {customers.map((customer) => (
+                  <option key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </option>
+                ))}
+                <option value={OTHER_CUSTOMER}>Other (not listed)</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="material">Material</Label>
               <select
                 id="material"
@@ -180,7 +207,7 @@ export default function BatchBuilder({ type, title, subtitle }: BatchBuilderProp
               </Alert>
             )}
             <Button
-              disabled={!droppedShipper || !materialId || submitting}
+              disabled={!droppedShipper || !materialId || !customerChoice || submitting}
               onClick={handleConfirm}
             >
               {submitting ? (

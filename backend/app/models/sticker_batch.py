@@ -14,6 +14,7 @@ class StickerBatch(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     shipper_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("shippers.id"), nullable=False)
     material_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("materials.id"), nullable=False)
+    customer_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("customers.id"))
     type: Mapped[str] = mapped_column(String(20), nullable=False)
     container_no: Mapped[str | None] = mapped_column(String(255))
     sticker_file_url: Mapped[str | None] = mapped_column(String(512))
@@ -23,4 +24,5 @@ class StickerBatch(Base):
 
     shipper: Mapped["Shipper"] = relationship()
     material: Mapped["Material"] = relationship()
+    customer: Mapped["Customer | None"] = relationship()
     bundles: Mapped[list["Bundle"]] = relationship(back_populates="sticker_batch")
